@@ -264,7 +264,7 @@ function App() {
     event.stopPropagation()
     const canvas = canvasRef.current
     if (!canvas) return
-    canvas.setPointerCapture?.(event.pointerId)
+    event.currentTarget.setPointerCapture?.(event.pointerId)
 
     const rect = canvas.getBoundingClientRect()
     activePointers.current.set(event.pointerId, {
@@ -353,10 +353,15 @@ function App() {
     event.preventDefault()
     event.stopPropagation()
     const canvas = canvasRef.current
-    canvas?.releasePointerCapture?.(event.pointerId)
+    if (canvas?.hasPointerCapture?.(event.pointerId)) canvas.releasePointerCapture(event.pointerId)
     activePointers.current.delete(event.pointerId)
     if (activePointers.current.size < 2) pinchStart.current = null
     activeStrokeId.current = null
+  }, [])
+
+  const blockCanvasGesture = useCallback((event: React.TouchEvent<HTMLCanvasElement> | React.WheelEvent<HTMLCanvasElement>) => {
+    event.preventDefault()
+    event.stopPropagation()
   }, [])
 
   const undo = useCallback(() => {
@@ -459,7 +464,11 @@ function App() {
           onPointerMove={onPointerMove}
           onPointerUp={endPointer}
           onPointerCancel={endPointer}
-          onPointerLeave={endPointer}
+          onLostPointerCapture={endPointer}
+          onTouchStart={blockCanvasGesture}
+          onTouchMove={blockCanvasGesture}
+          onTouchEnd={blockCanvasGesture}
+          onWheel={blockCanvasGesture}
         />
         <div className="floatingTools" aria-label="Drawing tools">
           <button className={tool === 'pen' ? 'active' : ''} onClick={() => setTool('pen')}>Pen</button>
