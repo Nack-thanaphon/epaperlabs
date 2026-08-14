@@ -249,7 +249,7 @@ function App() {
     event.stopPropagation()
     const canvas = canvasRef.current
     if (!canvas) return
-    event.currentTarget.setPointerCapture?.(event.pointerId)
+    canvas.setPointerCapture?.(event.pointerId)
 
     const rect = canvas.getBoundingClientRect()
     activePointers.current.set(event.pointerId, {
