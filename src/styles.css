@@ -38,7 +38,6 @@ button {
   touch-action: none;
 }
 
-.topBar,
 .bottomBar {
   z-index: 10;
   display: flex;
@@ -50,45 +49,12 @@ button {
   border-color: rgba(255, 255, 255, 0.12);
 }
 
-.topBar {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-}
-
 .bottomBar {
   justify-content: flex-end;
   border-top: 1px solid rgba(255, 255, 255, 0.12);
   padding-bottom: max(10px, env(safe-area-inset-bottom));
 }
 
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: max-content;
-  color: #f7f7f8;
-  font-size: 16px;
-  font-weight: 800;
-}
-
-.logo {
-  display: grid;
-  place-items: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 10px;
-  background: #7c3aed;
-  color: white;
-  font-weight: 900;
-}
-
-.hint {
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: rgba(255, 255, 255, 0.55);
-  font-size: 13px;
-}
 
 .boardWrap {
   min-height: 520px;
@@ -97,6 +63,55 @@ button {
   background: #f8fafc;
   touch-action: none;
   overscroll-behavior: none;
+}
+
+.problemPanel {
+  position: relative;
+  z-index: 8;
+  color: #111827;
+  background: #fff;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.problemCollapse,
+.problemRestore {
+  position: absolute;
+  right: 8px;
+  z-index: 1;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #6b7280;
+  font: inherit;
+  font-size: 20px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.problemCollapse {
+  top: 8px;
+}
+
+.problemRestore {
+  position: relative;
+  right: auto;
+  display: block;
+  margin: 2px auto;
+}
+
+.problemText {
+  max-height: 30vh;
+  overflow: auto;
+  padding: 18px 56px 18px 18px;
+  white-space: pre-wrap;
+  font-size: clamp(16px, 2.2vw, 21px);
+  font-weight: 600;
+  line-height: 1.5;
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 .paperCanvas {
@@ -120,6 +135,43 @@ button {
 
 .paperCanvas.tool-pan {
   cursor: grab;
+}
+
+.paperCanvas.locked {
+  cursor: not-allowed;
+}
+
+.fullscreenGate {
+  position: absolute;
+  inset: 0;
+  z-index: 7;
+  display: grid;
+  place-content: center;
+  padding: 24px;
+  background: rgba(248, 250, 252, 0.5);
+}
+
+.openWritingButton {
+  justify-self: center;
+  min-height: 40px;
+  padding: 8px 14px;
+  border: 1px solid rgba(15, 23, 42, 0.18);
+  border-radius: 999px;
+  color: #111827;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.12);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.bottomControls {
+  z-index: 10;
+  display: grid;
+  background: rgba(12, 12, 16, 0.96);
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .submitButton,
@@ -169,22 +221,14 @@ button {
 }
 
 .floatingTools {
-  position: absolute;
-  left: 50%;
-  bottom: 18px;
-  transform: translateX(-50%);
-  z-index: 5;
   display: flex;
   align-items: center;
   gap: 8px;
-  max-width: calc(100% - 24px);
+  max-width: 100%;
   overflow-x: auto;
-  padding: 8px;
-  border: 1px solid rgba(15, 23, 42, 0.14);
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.92);
-  box-shadow: 0 14px 40px rgba(15, 23, 42, 0.18);
-  backdrop-filter: blur(16px);
+  padding: 8px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  background: transparent;
   touch-action: manipulation;
 }
 
@@ -194,6 +238,17 @@ button {
   color: #111827;
   background: #f8fafc;
   border-color: rgba(15, 23, 42, 0.12);
+}
+
+.floatingTools .modeButton {
+  min-width: 36px;
+  width: 36px;
+  min-height: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 10px;
+  font-size: 19px;
+  line-height: 1;
 }
 
 .floatingTools button.active {
@@ -226,19 +281,11 @@ button {
 }
 
 @media (max-width: 720px) {
-  .hint {
-    display: none;
-  }
-
-  .topBar,
   .bottomBar {
     padding-inline: 10px;
     gap: 8px;
   }
 
-  .brand span:last-child {
-    display: none;
-  }
 
   .submitButton,
   .expandButton,
@@ -249,9 +296,6 @@ button {
   }
 
   .floatingTools {
-    left: 8px;
-    right: 8px;
-    bottom: 10px;
-    transform: none;
+    padding-inline: 10px;
   }
 }
