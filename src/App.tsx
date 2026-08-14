@@ -249,7 +249,11 @@ function App() {
     event.stopPropagation()
     const canvas = canvasRef.current
     if (!canvas) return
-    canvas.setPointerCapture?.(event.pointerId)
+    try {
+      canvas.setPointerCapture?.(event.pointerId)
+    } catch {
+      // Some sandboxed WebKit/iframe contexts reject pointer capture; drawing must still continue.
+    }
 
     const rect = canvas.getBoundingClientRect()
     activePointers.current.set(event.pointerId, {
@@ -338,7 +342,11 @@ function App() {
     event.preventDefault()
     event.stopPropagation()
     const canvas = canvasRef.current
-    if (canvas?.hasPointerCapture?.(event.pointerId)) canvas.releasePointerCapture(event.pointerId)
+    try {
+      if (canvas?.hasPointerCapture?.(event.pointerId)) canvas.releasePointerCapture(event.pointerId)
+    } catch {
+      // Pointer capture may have been rejected or released by the host.
+    }
     activePointers.current.delete(event.pointerId)
     if (activePointers.current.size < 2) pinchStart.current = null
     activeStrokeId.current = null
