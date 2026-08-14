@@ -28,17 +28,24 @@ ChatGPT asks a question
 
 GitHub Pages can host the static board demo, but **GitHub Pages cannot host the MCP server**.
 
-So there are two URLs:
+Vercel can host both:
 
-1. **ChatGPT MCP URL** — real app connection:
+- static board page
+- `/mcp` serverless MCP endpoint
+
+Expected Vercel URL after deployment:
+
+```text
+https://epaperlabs.vercel.app/mcp
+```
+
+Current development MCP URL:
 
 ```text
 https://my-mac-tunnel.tap-on-it.com/mcp
 ```
 
-This points to the local Mac server on port `3000` through Cloudflare Tunnel.
-
-2. **GitHub Pages URL** — static demo only:
+Static demo URL:
 
 ```text
 https://nack-thanaphon.github.io/epaperlabs/
@@ -90,6 +97,30 @@ cloudflared tunnel run my-mac-tunnel
 
 ## ChatGPT setup
 
+### Option A — Vercel permanent URL (recommended after deployment)
+
+Use this as Plugin Server URL:
+
+```text
+https://<your-vercel-project>.vercel.app/mcp
+```
+
+For example, if the project is named `epaperlabs`:
+
+```text
+https://epaperlabs.vercel.app/mcp
+```
+
+### Option B — Mac + Cloudflare Tunnel development URL
+
+Use this as Plugin Server URL while developing on the Mac:
+
+```text
+https://my-mac-tunnel.tap-on-it.com/mcp
+```
+
+### Steps
+
 1. Open ChatGPT settings.
 2. Enable **Developer mode**.
 3. Go to:
@@ -131,6 +162,46 @@ npm test       # node:test logic tests
 npm run build  # build single-file tldraw widget for MCP + GitHub Pages
 npm start      # run MCP server on port 3000
 ```
+
+## Deploy to Vercel free tier
+
+The repo includes:
+
+- `api/mcp.js` — Vercel serverless MCP endpoint
+- `lib/mcp-app.mjs` — shared MCP app/server handler
+- `vercel.json` — rewrites `/mcp` → `/api/mcp`
+
+Deploy commands:
+
+```bash
+cd /Users/jarvis/epaperlabs
+vercel login
+vercel --prod
+```
+
+If using GitHub import on vercel.com:
+
+1. Import `https://github.com/Nack-thanaphon/epaperlabs`
+2. Framework preset: **Vite**
+3. Build command: `npm run build`
+4. Output directory: `dist`
+5. Deploy
+
+After deploy, verify:
+
+```bash
+curl -X POST https://<your-project>.vercel.app/mcp \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
+```
+
+Expected tool:
+
+```text
+open_epaper
+```
+
 
 ## Known limitations
 
