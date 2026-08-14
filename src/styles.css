@@ -3,6 +3,7 @@ body,
 #root {
   width: 100%;
   height: 100%;
+  min-height: 720px;
   margin: 0;
   overflow: hidden;
   overscroll-behavior: none;
@@ -24,6 +25,7 @@ button {
 
 .appShell {
   height: 100%;
+  min-height: 720px;
   width: 100%;
   display: grid;
   grid-template-rows: auto 1fr auto;
@@ -87,7 +89,7 @@ button {
 }
 
 .boardWrap {
-  min-height: 0;
+  min-height: 520px;
   position: relative;
   overflow: hidden;
   background: #f8fafc;
@@ -117,6 +119,7 @@ button {
 }
 
 .submitButton,
+.expandButton,
 .toolButton,
 .floatingTools button {
   border: 1px solid rgba(255, 255, 255, 0.16);
@@ -131,8 +134,15 @@ button {
 }
 
 .submitButton,
+.expandButton,
 .toolButton {
   padding: 10px 16px;
+}
+
+.expandButton {
+  color: #dbeafe;
+  border-color: rgba(96, 165, 250, 0.5);
+  background: rgba(37, 99, 235, 0.22);
 }
 
 .submitButton,
@@ -227,6 +237,7 @@ button {
   }
 
   .submitButton,
+  .expandButton,
   .toolButton,
   .floatingTools button {
     padding: 9px 12px;

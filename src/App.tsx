@@ -194,13 +194,22 @@ function App() {
     for (const stroke of strokesRef.current) drawStrokePath(ctx, stroke)
   }, [viewport])
 
-  useEffect(() => {
+  const requestFullscreen = useCallback(() => {
     try {
-      window.openai?.requestDisplayMode?.({ mode: 'fullscreen' })
+      return window.openai?.requestDisplayMode?.({ mode: 'fullscreen' })
     } catch {
-      // unsupported host
+      // Unsupported host / bridge not ready yet.
+      return undefined
     }
   }, [])
+
+  useEffect(() => {
+    // ChatGPT can inject its bridge after the React app mounts. Retry briefly so
+    // iPad starts in a useful writing area instead of a collapsed inline card.
+    void requestFullscreen()
+    const retries = [350, 1200].map((delay) => window.setTimeout(() => void requestFullscreen(), delay))
+    return () => retries.forEach(window.clearTimeout)
+  }, [requestFullscreen])
 
   useEffect(() => {
     redraw()
@@ -438,6 +447,7 @@ function App() {
       <div className="topBar">
         <div className="brand"><span className="logo">E</span><span>E-PaperLabs</span></div>
         <div className="hint">Lightweight handwriting board · Pencil/finger writes · two fingers pinch/pan</div>
+        <button className="expandButton" onClick={() => void requestFullscreen()}>เต็มจอ</button>
         <button className="submitButton" disabled={status === 'submitting'} onClick={handleSubmit}>{statusText}</button>
       </div>
 
