@@ -221,21 +221,6 @@ function App() {
     return () => window.removeEventListener('resize', onResize)
   }, [redraw])
 
-  useEffect(() => {
-    const stop = (event: TouchEvent | Event) => {
-      event.preventDefault()
-      event.stopPropagation()
-    }
-    for (const type of ['touchstart', 'touchmove', 'touchend', 'gesturestart', 'gesturechange']) {
-      document.addEventListener(type, stop, { passive: false, capture: true })
-    }
-    return () => {
-      for (const type of ['touchstart', 'touchmove', 'touchend', 'gesturestart', 'gesturechange']) {
-        document.removeEventListener(type, stop, { capture: true })
-      }
-    }
-  }, [])
-
   const setZoom = useCallback((nextScale: number) => {
     const canvas = canvasRef.current
     if (!canvas) return
@@ -464,7 +449,6 @@ function App() {
           onPointerMove={onPointerMove}
           onPointerUp={endPointer}
           onPointerCancel={endPointer}
-          onLostPointerCapture={endPointer}
           onTouchStart={blockCanvasGesture}
           onTouchMove={blockCanvasGesture}
           onTouchEnd={blockCanvasGesture}
