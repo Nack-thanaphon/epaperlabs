@@ -61,17 +61,15 @@ button {
 .bottomBar {
   z-index: 10;
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
+  justify-content: flex-end;
   gap: 12px;
   padding: 8px 12px;
+  min-width: max-content;
   background: rgba(12, 12, 16, 0.94);
   backdrop-filter: blur(16px);
   border-color: rgba(255, 255, 255, 0.12);
-}
-
-.bottomBar {
-  justify-content: flex-end;
-  min-width: max-content;
 }
 
 
@@ -203,9 +201,10 @@ button {
 
 .bottomControls {
   z-index: 10;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  display: flex;
+  flex-wrap: nowrap;
   align-items: center;
+  min-width: 0;
   padding-bottom: max(var(--host-safe-bottom, 0px), env(safe-area-inset-bottom));
   background: rgba(12, 12, 16, 0.96);
   border-top: 1px solid rgba(255, 255, 255, 0.12);
@@ -263,6 +262,7 @@ button {
 
 .floatingTools {
   display: flex;
+  flex: 1 1 auto;
   align-items: center;
   gap: 8px;
   max-width: 100%;
@@ -342,26 +342,26 @@ button {
 }
 
 @media (max-width: 600px) {
-  .bottomControls {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
   .bottomBar {
-    display: grid;
-    grid-template-columns: 44px 44px 52px minmax(0, 1fr);
-    width: 100%;
+    flex: 0 0 auto;
+    width: auto;
     min-width: 0;
-    gap: 8px;
+    gap: 6px;
+    padding-inline: 6px;
   }
 
   .bottomBar .toolButton {
-    min-width: 0;
-    padding-inline: 8px;
+    min-width: 44px;
+    padding-inline: 6px;
   }
 
   .bottomBar .toolButton.primary {
-    min-width: 0;
+    min-width: 72px;
     font-size: 13px;
+  }
+
+  .floatingTools {
+    padding-inline: 8px;
   }
 
   .historyLabel {
