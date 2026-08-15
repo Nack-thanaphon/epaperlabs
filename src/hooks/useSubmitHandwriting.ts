@@ -1,5 +1,6 @@
-import { useCallback, useMemo, useState, type RefObject } from 'react'
+import { useCallback, useMemo, useRef, useState, type RefObject } from 'react'
 import { PAPER_HEIGHT, PAPER_WIDTH, STATUS_TEXT } from '../constants'
+import { createSubmitController, type SubmitController, type SubmitStageError } from '../submit/submitMachine'
 import type { Stroke, SubmitStatus } from '../types'
 
 interface UseSubmitHandwritingOptions {
@@ -7,38 +8,51 @@ interface UseSubmitHandwritingOptions {
   exportBlob: () => Promise<Blob>
 }
 
+const ACTIVE_STATUSES = new Set<SubmitStatus>([
+  'exporting',
+  'uploading',
+  'attaching',
+  'sending',
+  'closing',
+])
+
+function bridgeOrThrow() {
+  const bridge = window.openai
+  if (!bridge?.uploadFile || !bridge.setWidgetState || !bridge.sendFollowUpMessage) {
+    throw new Error('ChatGPT bridge is not ready')
+  }
+  return bridge
+}
+
 export function useSubmitHandwriting({ strokesRef, exportBlob }: UseSubmitHandwritingOptions) {
   const [status, setStatus] = useState<SubmitStatus>('idle')
-  const statusText = useMemo(() => STATUS_TEXT[status], [status])
+  const [failureText, setFailureText] = useState('')
+  const statusText = useMemo(
+    () => status === 'failed' && failureText ? failureText : STATUS_TEXT[status],
+    [failureText, status]
+  )
+  const exportBlobRef = useRef(exportBlob)
+  exportBlobRef.current = exportBlob
+  const controllerRef = useRef<SubmitController | null>(null)
 
-  const handleSubmit = useCallback(async () => {
-    if (strokesRef.current.length === 0) {
-      setStatus('empty')
-      setTimeout(() => setStatus('idle'), 1400)
-      return
-    }
-
-    setStatus('submitting')
-    try {
-      const blob = await exportBlob()
-      const file = new File([blob], 'epaperlabs-handwriting.png', { type: 'image/png' })
-
-      const bridge = window.openai
-      if (bridge) {
-        if (!bridge.uploadFile || !bridge.setWidgetState || !bridge.sendFollowUpMessage) {
-          throw new Error('ChatGPT bridge is not ready; please try Submit again')
-        }
-        // Do not also wait for the optional ChatGPT file-library copy. The image
-        // only needs to be attached to this conversation, so this is faster and
-        // has one less host operation that can delay the follow-up.
-        const { fileId } = await bridge.uploadFile(file)
+  if (!controllerRef.current) {
+    controllerRef.current = createSubmitController({
+      exportBlob: () => exportBlobRef.current(),
+      upload: async (blob) => {
+        const bridge = bridgeOrThrow()
+        const file = new File([blob], 'papa-handwriting.png', { type: 'image/png' })
+        const { fileId } = await bridge.uploadFile!(file)
         if (!fileId) throw new Error('ChatGPT did not return an uploaded image ID')
-
-        await bridge.setWidgetState({
+        return fileId
+      },
+      attach: async (fileId, submissionId) => {
+        const bridge = bridgeOrThrow()
+        await bridge.setWidgetState!({
           modelContent:
             'The user submitted handwritten work. The PNG in imageIds is the answer to inspect visually. Read the image before replying; preserve equations, arrows, fractions, crossed-out work, and spatial structure.',
           privateContent: {
             source: 'papa-handwriting-board',
+            submissionId,
             strokeCount: strokesRef.current.length,
             paperWidth: PAPER_WIDTH,
             paperHeight: PAPER_HEIGHT,
@@ -46,33 +60,65 @@ export function useSubmitHandwriting({ strokesRef, exportBlob }: UseSubmitHandwr
           },
           imageIds: [fileId],
         })
-        // setWidgetState is synchronous in the documented bridge, but wait one
-        // render frame so its postMessage reaches the host before asking the
-        // model to read the attached image.
-        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
-        await bridge.sendFollowUpMessage({
-          prompt: '[Papa] ผมส่งคำตอบลายมือเป็นรูปภาพแล้ว กรุณาดูรูปที่แนบมาก่อน แล้วตรวจวิธีคิดให้ผมครับ',
+      },
+      send: async (submissionId) => {
+        const bridge = bridgeOrThrow()
+        await bridge.sendFollowUpMessage!({
+          prompt: `[Papa submission ${submissionId}] ผมส่งคำตอบลายมือเป็นรูปภาพแล้ว กรุณาดูรูปที่แนบมาก่อน แล้วตรวจวิธีคิดให้ผมครับ`,
           scrollToBottom: true,
         })
-        setStatus('submitted')
-        setTimeout(() => setStatus('idle'), 2200)
-        return
-      }
+      },
+      close: async () => {
+        const bridge = window.openai
+        if (bridge?.requestClose) {
+          await bridge.requestClose()
+          return
+        }
+        if (bridge?.requestDisplayMode) {
+          await bridge.requestDisplayMode({ mode: 'inline' })
+          return
+        }
+        throw new Error('ChatGPT cannot close the board')
+      },
+      onStage: (stage) => {
+        setFailureText('')
+        setStatus(stage)
+      },
+      onFailure: (error: SubmitStageError) => {
+        const labels: Record<SubmitStageError['stage'], string> = {
+          exporting: 'เตรียมรูปไม่สำเร็จ — ลองอีกครั้ง',
+          uploading: 'อัปโหลดไม่สำเร็จ — ลองอีกครั้ง',
+          attaching: 'แนบรูปไม่สำเร็จ — ลองอีกครั้ง',
+          sending: 'ส่งเข้าแชตไม่สำเร็จ — ลองอีกครั้ง',
+          closing: 'ส่งแล้ว — แตะเพื่อกลับแชต',
+        }
+        setFailureText(labels[error.stage])
+        setStatus('failed')
+      },
+      timeoutMs: 20_000,
+    })
+  }
 
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = 'epaperlabs-handwriting.png'
-      a.click()
-      URL.revokeObjectURL(url)
-      setStatus('submitted')
-      setTimeout(() => setStatus('idle'), 1800)
-    } catch (error) {
-      console.error('Submit failed', error)
-      setStatus('error')
-      setTimeout(() => setStatus('idle'), 2200)
+  const handleSubmit = useCallback(async () => {
+    const controller = controllerRef.current!
+    if (controller.isSubmitting()) return
+    if (strokesRef.current.length === 0) {
+      setStatus('empty')
+      window.setTimeout(() => setStatus((current) => current === 'empty' ? 'idle' : current), 1400)
+      return
     }
-  }, [exportBlob, strokesRef])
 
-  return { status, statusText, handleSubmit }
+    try {
+      await (status === 'failed' ? controller.retry() : controller.submit())
+    } catch (error) {
+      console.error('Papa Submit failed', error)
+    }
+  }, [status, strokesRef])
+
+  return {
+    status,
+    statusText,
+    isSubmitting: ACTIVE_STATUSES.has(status),
+    handleSubmit,
+  }
 }

@@ -11,8 +11,12 @@ export const MAX_SCALE = 3
 
 export const STATUS_TEXT: Record<SubmitStatus, string> = {
   idle: 'Submit',
-  submitting: 'Submitting…',
-  submitted: 'Submitted ✓',
-  error: 'Try again',
-  empty: 'Write first',
+  exporting: 'กำลังเตรียมรูป…',
+  uploading: 'กำลังอัปโหลด…',
+  attaching: 'กำลังแนบรูป…',
+  sending: 'กำลังส่ง…',
+  closing: 'ส่งแล้ว กำลังกลับแชต…',
+  submitted: 'ส่งสำเร็จ ✓',
+  failed: 'ลองส่งอีกครั้ง',
+  empty: 'เขียนคำตอบก่อน',
 }

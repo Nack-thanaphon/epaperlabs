@@ -13,7 +13,7 @@ import './styles.css'
 function App() {
   const { problem, writingReady, requestFullscreen } = useOpenAiHost()
   const board = useWhiteboard(writingReady)
-  const { status, statusText, handleSubmit } = useSubmitHandwriting({
+  const { status, statusText, isSubmitting, handleSubmit } = useSubmitHandwriting({
     strokesRef: board.strokesRef,
     exportBlob: board.exportBlob,
   })
@@ -46,6 +46,7 @@ function App() {
         />
         <BottomBar
           status={status}
+          isSubmitting={isSubmitting}
           statusText={statusText}
           onExpand={expand}
           onUndo={board.undo}
