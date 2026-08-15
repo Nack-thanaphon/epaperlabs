@@ -6,6 +6,7 @@ interface DrawingBoardProps {
   canvasRef: RefObject<HTMLCanvasElement | null>
   tool: Tool
   writingReady: boolean
+  inputLocked: boolean
   onPointerDown: (event: PointerEvent<HTMLCanvasElement>) => void
   onPointerMove: (event: PointerEvent<HTMLCanvasElement>) => void
   onPointerUp: (event: PointerEvent<HTMLCanvasElement>) => void
@@ -18,6 +19,7 @@ export function DrawingBoard({
   canvasRef,
   tool,
   writingReady,
+  inputLocked,
   onPointerDown,
   onPointerMove,
   onPointerUp,
@@ -29,7 +31,7 @@ export function DrawingBoard({
     <div className="boardWrap">
       <canvas
         ref={canvasRef}
-        className={`paperCanvas tool-${tool} ${writingReady ? '' : 'locked'}`}
+        className={`paperCanvas tool-${tool} ${writingReady && !inputLocked ? '' : 'locked'}`}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}

@@ -33,7 +33,13 @@ declare global {
       requestClose?: () => Promise<void>
       requestDisplayMode?: (request: { mode: 'inline' | 'fullscreen' | 'picture-in-picture' }) => Promise<void>
       displayMode?: 'inline' | 'fullscreen' | 'picture-in-picture'
-      safeArea?: { top?: number; right?: number; bottom?: number; left?: number }
+      safeArea?: {
+        top?: number
+        right?: number
+        bottom?: number
+        left?: number
+        insets?: { top?: number; right?: number; bottom?: number; left?: number }
+      }
       toolInput?: { problem?: string }
     }
   }

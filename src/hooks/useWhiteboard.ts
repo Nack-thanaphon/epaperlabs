@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type PointerEvent, type TouchEvent, type WheelEvent } from 'react'
 import { COLORS, MAX_SCALE, MIN_SCALE, SIZES } from '../constants'
+import { BoardHistory, cloneStrokes } from '../history/boardHistory'
 import { PointerSession, type SessionPointer } from '../input/pointerSession'
 import type { Stroke, Tool, Viewport } from '../types'
 import { distance, exportPaperBlob, midpoint, redrawPaper, screenToPaper, uid } from '../utils/drawing'
@@ -7,7 +8,8 @@ import { distance, exportPaperBlob, midpoint, redrawPaper, screenToPaper, uid } 
 export function useWhiteboard(writingReady: boolean) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const strokesRef = useRef<Stroke[]>([])
-  const redoStrokesRef = useRef<Stroke[]>([])
+  const historyRef = useRef(new BoardHistory())
+  const gestureBeforeRef = useRef<Stroke[] | null>(null)
   const pointerSession = useRef(new PointerSession())
   const activeStrokeId = useRef<string | null>(null)
   const pinchStart = useRef<{
@@ -21,6 +23,14 @@ export function useWhiteboard(writingReady: boolean) {
   const [size, setSize] = useState(SIZES[1])
   const [viewport, setViewport] = useState<Viewport>({ scale: 0.75, x: 32, y: 32 })
   const [revision, setRevision] = useState(0)
+  const [historyState, setHistoryState] = useState({ canUndo: false, canRedo: false })
+
+  const syncHistoryState = useCallback(() => {
+    setHistoryState({
+      canUndo: historyRef.current.canUndo,
+      canRedo: historyRef.current.canRedo,
+    })
+  }, [])
 
   const redraw = useCallback((nextViewport = viewport) => {
     const canvas = canvasRef.current
@@ -39,6 +49,11 @@ export function useWhiteboard(writingReady: boolean) {
   }, [redraw])
 
   const resetPointerState = useCallback(() => {
+    if (gestureBeforeRef.current) {
+      strokesRef.current = cloneStrokes(gestureBeforeRef.current)
+      gestureBeforeRef.current = null
+      setRevision((r) => r + 1)
+    }
     pointerSession.current.reset()
     activeStrokeId.current = null
     pinchStart.current = null
@@ -78,7 +93,6 @@ export function useWhiteboard(writingReady: boolean) {
       !stroke.points.some((p) => Math.hypot(p.x - point.x, p.y - point.y) <= radius)
     )
     if (strokesRef.current.length !== before) {
-      redoStrokesRef.current = []
       setRevision((r) => r + 1)
     }
   }, [size])
@@ -100,9 +114,9 @@ export function useWhiteboard(writingReady: boolean) {
 
   const cancelTouchStroke = useCallback((cancelledDrawingId: number | null) => {
     if (cancelledDrawingId === null) return
-    const activeStroke = strokesRef.current.at(-1)
-    if (activeStroke?.id === activeStrokeId.current) {
-      strokesRef.current = strokesRef.current.slice(0, -1)
+    if (gestureBeforeRef.current) {
+      strokesRef.current = cloneStrokes(gestureBeforeRef.current)
+      gestureBeforeRef.current = null
       setRevision((r) => r + 1)
     }
     activeStrokeId.current = null
@@ -128,6 +142,8 @@ export function useWhiteboard(writingReady: boolean) {
     }
     if (action.kind !== 'startDrawing') return
 
+    if (tool !== 'pan') gestureBeforeRef.current = cloneStrokes(strokesRef.current)
+
     const point = screenToPaper(canvas, viewport, event.clientX, event.clientY)
     point.pressure = event.pressure && event.pressure > 0 ? event.pressure : 0.55
 
@@ -138,7 +154,6 @@ export function useWhiteboard(writingReady: boolean) {
     if (tool === 'pan') return
 
     const stroke: Stroke = { id: uid(), points: [point], color, size }
-    redoStrokesRef.current = []
     strokesRef.current = [...strokesRef.current, stroke]
     activeStrokeId.current = stroke.id
     setRevision((r) => r + 1)
@@ -202,17 +217,20 @@ export function useWhiteboard(writingReady: boolean) {
     const action = pointerSession.current.up(event.pointerId)
     if (action.endedDrawing) {
       if (cancelled) {
-        const activeStroke = strokesRef.current.at(-1)
-        if (activeStroke?.id === activeStrokeId.current && activeStroke.points.length <= 1) {
-          strokesRef.current = strokesRef.current.slice(0, -1)
+        if (gestureBeforeRef.current) {
+          strokesRef.current = cloneStrokes(gestureBeforeRef.current)
           setRevision((r) => r + 1)
         }
+      } else if (gestureBeforeRef.current) {
+        historyRef.current.commit(gestureBeforeRef.current, strokesRef.current)
+        syncHistoryState()
       }
+      gestureBeforeRef.current = null
       activeStrokeId.current = null
     }
     pinchStart.current = null
     if (action.startGesture) beginPinch(action.startGesture)
-  }, [beginPinch])
+  }, [beginPinch, syncHistoryState])
 
   const endPointer = useCallback((event: PointerEvent<HTMLCanvasElement>) => {
     finishPointer(event, false)
@@ -228,25 +246,29 @@ export function useWhiteboard(writingReady: boolean) {
   }, [])
 
   const undo = useCallback(() => {
-    const last = strokesRef.current.at(-1)
-    if (!last) return
-    redoStrokesRef.current.push(last)
-    strokesRef.current = strokesRef.current.slice(0, -1)
+    const previous = historyRef.current.undo(strokesRef.current)
+    if (!previous) return
+    strokesRef.current = previous
+    syncHistoryState()
     setRevision((r) => r + 1)
-  }, [])
+  }, [syncHistoryState])
 
   const redo = useCallback(() => {
-    const stroke = redoStrokesRef.current.pop()
-    if (!stroke) return
-    strokesRef.current = [...strokesRef.current, stroke]
+    const next = historyRef.current.redo(strokesRef.current)
+    if (!next) return
+    strokesRef.current = next
+    syncHistoryState()
     setRevision((r) => r + 1)
-  }, [])
+  }, [syncHistoryState])
 
   const clearBoard = useCallback(() => {
+    if (strokesRef.current.length === 0) return
+    const before = cloneStrokes(strokesRef.current)
     strokesRef.current = []
-    redoStrokesRef.current = []
+    historyRef.current.commit(before, strokesRef.current)
+    syncHistoryState()
     setRevision((r) => r + 1)
-  }, [])
+  }, [syncHistoryState])
 
   const exportBlob = useCallback(() => exportPaperBlob(strokesRef.current), [])
 
@@ -265,9 +287,12 @@ export function useWhiteboard(writingReady: boolean) {
     onPointerMove,
     endPointer,
     cancelPointer,
+    cancelInput: resetPointerState,
     blockCanvasGesture,
     undo,
     redo,
+    canUndo: historyState.canUndo,
+    canRedo: historyState.canRedo,
     clearBoard,
     exportBlob,
   }

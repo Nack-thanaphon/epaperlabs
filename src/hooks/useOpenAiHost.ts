@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
 
+const EMPTY_SAFE_AREA = { top: 0, right: 0, bottom: 0, left: 0 }
+
 export function useOpenAiHost() {
   const [problem, setProblem] = useState('')
   const [writingReady, setWritingReady] = useState(false)
+  const [safeArea, setSafeArea] = useState(EMPTY_SAFE_AREA)
 
   const requestFullscreen = useCallback(async () => {
     try {
@@ -21,12 +24,6 @@ export function useOpenAiHost() {
   }, [])
 
   useEffect(() => {
-    // ChatGPT can inject its bridge after the React app mounts.
-    const syncProblem = () => setProblem(window.openai?.toolInput?.problem?.trim() ?? '')
-    syncProblem()
-  }, [requestFullscreen])
-
-  useEffect(() => {
     const syncProblem = () => setProblem(window.openai?.toolInput?.problem?.trim() ?? '')
     const syncWritingMode = () => {
       setWritingReady(
@@ -35,12 +32,23 @@ export function useOpenAiHost() {
           : Boolean(document.fullscreenElement)
       )
     }
+    const syncSafeArea = () => {
+      const area = window.openai?.safeArea
+      const insets = area?.insets ?? area
+      setSafeArea({
+        top: insets?.top ?? 0,
+        right: insets?.right ?? 0,
+        bottom: insets?.bottom ?? 0,
+        left: insets?.left ?? 0,
+      })
+    }
     const onHostGlobals = () => {
-      // The host can publish tool input after the widget has mounted.
-      // Keep the problem and fullscreen gate in sync from the same update.
+      // ChatGPT can publish tool input, display mode, and safe-area insets after mount.
       syncProblem()
       syncWritingMode()
+      syncSafeArea()
     }
+
     onHostGlobals()
     window.addEventListener('openai:set_globals', onHostGlobals)
     document.addEventListener('fullscreenchange', syncWritingMode)
@@ -50,5 +58,5 @@ export function useOpenAiHost() {
     }
   }, [])
 
-  return { problem, writingReady, requestFullscreen }
+  return { problem, writingReady, safeArea, requestFullscreen }
 }

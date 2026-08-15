@@ -39,10 +39,13 @@ button {
   position: fixed;
   inset: 0;
   height: 100%;
-  min-height: 720px;
+  min-height: 0;
   display: grid;
   grid-template-rows: auto 1fr auto;
   overflow: hidden;
+  padding-top: max(var(--host-safe-top, 0px), env(safe-area-inset-top));
+  padding-right: max(var(--host-safe-right, 0px), env(safe-area-inset-right));
+  padding-left: max(var(--host-safe-left, 0px), env(safe-area-inset-left));
   background: #0b0b0f;
   color: #f7f7f8;
 }
@@ -60,7 +63,7 @@ button {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 14px;
+  padding: 8px 12px;
   background: rgba(12, 12, 16, 0.94);
   backdrop-filter: blur(16px);
   border-color: rgba(255, 255, 255, 0.12);
@@ -68,13 +71,12 @@ button {
 
 .bottomBar {
   justify-content: flex-end;
-  border-top: 1px solid rgba(255, 255, 255, 0.12);
-  padding-bottom: max(10px, env(safe-area-inset-bottom));
+  min-width: max-content;
 }
 
 
 .boardWrap {
-  min-height: 520px;
+  min-height: 0;
   position: relative;
   overflow: hidden;
   background: #f8fafc;
@@ -95,8 +97,8 @@ button {
   position: absolute;
   right: 8px;
   z-index: 1;
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   padding: 0;
   border: 0;
   border-radius: 999px;
@@ -163,6 +165,7 @@ button {
 
 .paperCanvas.locked {
   cursor: not-allowed;
+  pointer-events: none;
 }
 
 .fullscreenGate {
@@ -184,7 +187,7 @@ button {
 
 .openWritingButton {
   justify-self: center;
-  min-height: 40px;
+  min-height: 44px;
   padding: 8px 14px;
   border: 1px solid rgba(15, 23, 42, 0.18);
   border-radius: 999px;
@@ -201,6 +204,9 @@ button {
 .bottomControls {
   z-index: 10;
   display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  padding-bottom: max(var(--host-safe-bottom, 0px), env(safe-area-inset-bottom));
   background: rgba(12, 12, 16, 0.96);
   border-top: 1px solid rgba(255, 255, 255, 0.12);
 }
@@ -237,6 +243,10 @@ button {
   border-color: #2563eb;
   background: #2563eb;
   color: white;
+  min-width: 160px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .toolButton.danger {
@@ -258,7 +268,7 @@ button {
   max-width: 100%;
   overflow-x: auto;
   padding: 8px 14px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  min-width: 0;
   background: transparent;
   touch-action: manipulation;
 }
@@ -272,10 +282,10 @@ button {
 }
 
 .floatingTools .modeButton {
-  min-width: 36px;
-  width: 36px;
-  min-height: 36px;
-  height: 36px;
+  min-width: 44px;
+  width: 44px;
+  min-height: 44px;
+  height: 44px;
   padding: 0;
   border-radius: 10px;
   font-size: 19px;
@@ -289,10 +299,10 @@ button {
 }
 
 .floatingTools .swatch {
-  min-width: 34px;
-  width: 34px;
-  height: 34px;
-  min-height: 34px;
+  min-width: 44px;
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
   padding: 0;
   border-radius: 999px;
   border: 3px solid rgba(255, 255, 255, 0.9);
@@ -328,5 +338,33 @@ button {
 
   .floatingTools {
     padding-inline: 10px;
+  }
+}
+
+@media (max-width: 600px) {
+  .bottomControls {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .bottomBar {
+    display: grid;
+    grid-template-columns: 44px 44px 52px minmax(0, 1fr);
+    width: 100%;
+    min-width: 0;
+    gap: 8px;
+  }
+
+  .bottomBar .toolButton {
+    min-width: 0;
+    padding-inline: 8px;
+  }
+
+  .bottomBar .toolButton.primary {
+    min-width: 0;
+    font-size: 13px;
+  }
+
+  .historyLabel {
+    display: none;
   }
 }

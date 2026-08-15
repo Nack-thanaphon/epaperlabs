@@ -1,5 +1,5 @@
 import getStroke from 'perfect-freehand'
-import { GRID_STEP, PAPER_HEIGHT, PAPER_WIDTH } from '../constants'
+import { EXPORT_SCALE, GRID_STEP, PAPER_HEIGHT, PAPER_WIDTH } from '../constants'
 import type { Point, Stroke, Viewport } from '../types'
 
 export function uid() {
@@ -137,7 +137,7 @@ export function redrawPaper(canvas: HTMLCanvasElement, viewport: Viewport, strok
 
 export async function exportPaperBlob(strokes: Stroke[]) {
   const exportCanvas = document.createElement('canvas')
-  const scale = 1.5
+  const scale = EXPORT_SCALE
   exportCanvas.width = PAPER_WIDTH * scale
   exportCanvas.height = PAPER_HEIGHT * scale
   const ctx = exportCanvas.getContext('2d')

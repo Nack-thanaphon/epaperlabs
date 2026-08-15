@@ -38,7 +38,7 @@ export class PointerSession {
     if (this.inGesture) {
       const touches = this.touchPointers()
       return touches.length >= 2
-        ? { kind: 'gesture', pointers: [touches[0], touches[1]] }
+        ? { kind: 'startGesture', pointers: [touches[0], touches[1]], cancelledDrawingId: null }
         : { kind: 'ignore' }
     }
 
@@ -91,7 +91,11 @@ export class PointerSession {
     this.active.delete(pointerId)
 
     if (this.inGesture) {
-      if (this.touchPointers().length === 0) this.inGesture = false
+      const touches = this.touchPointers()
+      if (touches.length === 0) this.inGesture = false
+      if (touches.length >= 2) {
+        return { endedDrawing, startGesture: [touches[0], touches[1]] }
+      }
       return { endedDrawing, startGesture: null }
     }
 

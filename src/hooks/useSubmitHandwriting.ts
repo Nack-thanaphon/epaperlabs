@@ -6,6 +6,7 @@ import type { Stroke, SubmitStatus } from '../types'
 interface UseSubmitHandwritingOptions {
   strokesRef: RefObject<Stroke[]>
   exportBlob: () => Promise<Blob>
+  beforeSubmit?: () => void
 }
 
 const ACTIVE_STATUSES = new Set<SubmitStatus>([
@@ -14,6 +15,7 @@ const ACTIVE_STATUSES = new Set<SubmitStatus>([
   'attaching',
   'sending',
   'closing',
+  'submitted',
 ])
 
 function bridgeOrThrow() {
@@ -24,7 +26,7 @@ function bridgeOrThrow() {
   return bridge
 }
 
-export function useSubmitHandwriting({ strokesRef, exportBlob }: UseSubmitHandwritingOptions) {
+export function useSubmitHandwriting({ strokesRef, exportBlob, beforeSubmit }: UseSubmitHandwritingOptions) {
   const [status, setStatus] = useState<SubmitStatus>('idle')
   const [failureText, setFailureText] = useState('')
   const statusText = useMemo(
@@ -87,9 +89,11 @@ export function useSubmitHandwriting({ strokesRef, exportBlob }: UseSubmitHandwr
       onFailure: (error: SubmitStageError) => {
         const labels: Record<SubmitStageError['stage'], string> = {
           exporting: 'เตรียมรูปไม่สำเร็จ — ลองอีกครั้ง',
-          uploading: 'อัปโหลดไม่สำเร็จ — ลองอีกครั้ง',
-          attaching: 'แนบรูปไม่สำเร็จ — ลองอีกครั้ง',
-          sending: 'ส่งเข้าแชตไม่สำเร็จ — ลองอีกครั้ง',
+          uploading: 'อัปโหลดไม่สำเร็จ — งานเดิมยังอยู่',
+          attaching: 'แนบรูปไม่สำเร็จ — งานเดิมยังอยู่',
+          sending: error.code === 'timeout'
+            ? 'รอการส่งเดิม — แตะตรวจอีกครั้ง'
+            : 'ส่งเข้าแชตไม่สำเร็จ — งานเดิมยังอยู่',
           closing: 'ส่งแล้ว — แตะเพื่อกลับแชต',
         }
         setFailureText(labels[error.stage])
@@ -102,6 +106,7 @@ export function useSubmitHandwriting({ strokesRef, exportBlob }: UseSubmitHandwr
   const handleSubmit = useCallback(async () => {
     const controller = controllerRef.current!
     if (controller.isSubmitting()) return
+    beforeSubmit?.()
     if (strokesRef.current.length === 0) {
       setStatus('empty')
       window.setTimeout(() => setStatus((current) => current === 'empty' ? 'idle' : current), 1400)
@@ -113,12 +118,13 @@ export function useSubmitHandwriting({ strokesRef, exportBlob }: UseSubmitHandwr
     } catch (error) {
       console.error('Papa Submit failed', error)
     }
-  }, [status, strokesRef])
+  }, [beforeSubmit, status, strokesRef])
 
   return {
     status,
     statusText,
     isSubmitting: ACTIVE_STATUSES.has(status),
+    isBoardLocked: status !== 'idle' && status !== 'empty',
     handleSubmit,
   }
 }

@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { type CSSProperties } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BottomBar } from './components/BottomBar'
 import { DrawingBoard } from './components/DrawingBoard'
@@ -11,22 +11,32 @@ import { useWhiteboard } from './hooks/useWhiteboard'
 import './styles.css'
 
 function App() {
-  const { problem, writingReady, requestFullscreen } = useOpenAiHost()
+  const { problem, writingReady, safeArea, requestFullscreen } = useOpenAiHost()
   const board = useWhiteboard(writingReady)
-  const { status, statusText, isSubmitting, handleSubmit } = useSubmitHandwriting({
+  const { status, statusText, isSubmitting, isBoardLocked, handleSubmit } = useSubmitHandwriting({
     strokesRef: board.strokesRef,
     exportBlob: board.exportBlob,
+    beforeSubmit: board.cancelInput,
   })
   const expand = () => void requestFullscreen()
 
   return (
-    <div className={`appShell ${writingReady ? 'writingMode' : 'inlineMode'}`}>
+    <div
+      className={`appShell ${writingReady ? 'writingMode' : 'inlineMode'}`}
+      style={{
+        '--host-safe-top': `${safeArea.top}px`,
+        '--host-safe-right': `${safeArea.right}px`,
+        '--host-safe-bottom': `${safeArea.bottom}px`,
+        '--host-safe-left': `${safeArea.left}px`,
+      } as CSSProperties}
+    >
       {!writingReady ? <FullscreenGate compact onExpand={expand} /> : <>
       <ProblemPanel problem={problem} />
       <DrawingBoard
         canvasRef={board.canvasRef}
         tool={board.tool}
         writingReady={writingReady}
+        inputLocked={isBoardLocked}
         onPointerDown={board.onPointerDown}
         onPointerMove={board.onPointerMove}
         onPointerUp={board.endPointer}
@@ -48,8 +58,10 @@ function App() {
         <BottomBar
           status={status}
           isSubmitting={isSubmitting}
+          mutationLocked={isBoardLocked}
           statusText={statusText}
-          onExpand={expand}
+          canUndo={board.canUndo}
+          canRedo={board.canRedo}
           onUndo={board.undo}
           onRedo={board.redo}
           onClear={board.clearBoard}

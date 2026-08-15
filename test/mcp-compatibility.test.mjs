@@ -26,9 +26,14 @@ const expectedLegacyResources = [
   'ui://papa/papa-v2-math-superscripts.html',
   'ui://papa/papa-v3-reliable-submit.html',
   'ui://papa/papa-v4-bottom-launcher.html',
+  'ui://papa/papa-v5-undo-redo-touch.html',
 ]
 
 describe('MCP compatibility contract', () => {
+  test('publishes the stabilized v6 resource as current', () => {
+    assert.equal(RESOURCE_URI, 'ui://papa/papa-v6-stable-workflow.html')
+  })
+
   test('keeps every previously published resource URI', () => {
     for (const uri of expectedLegacyResources) {
       assert.ok(LEGACY_RESOURCE_URIS.includes(uri), `missing legacy resource ${uri}`)

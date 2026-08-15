@@ -27,6 +27,11 @@ interface SubmitAttempt {
   fileId?: string
   attached: boolean
   sent: boolean
+  exportPromise?: Promise<Blob>
+  uploadPromise?: Promise<string>
+  attachPromise?: Promise<void>
+  sendPromise?: Promise<void>
+  closePromise?: Promise<void>
 }
 
 export interface SubmitControllerDependencies {
@@ -77,6 +82,30 @@ export function createSubmitController(deps: SubmitControllerDependencies): Subm
     }
   }
 
+  const runPersistentStage = async <T>(
+    stage: ActiveSubmitStage,
+    getPromise: () => Promise<T> | undefined,
+    setPromise: (promise: Promise<T> | undefined) => void,
+    operation: () => Promise<T> | T
+  ): Promise<T> => {
+    let operationPromise = getPromise()
+    if (!operationPromise) {
+      operationPromise = Promise.resolve().then(operation)
+      setPromise(operationPromise)
+    }
+    try {
+      return await runStage(stage, () => operationPromise!)
+    } catch (error) {
+      // Host bridge calls cannot be aborted. After a timeout, retain and await
+      // the original promise on Retry instead of issuing a duplicate side effect.
+      // A definite rejection is safe to replace on the next explicit Retry.
+      if (error instanceof SubmitStageError && error.code === 'failed') {
+        setPromise(undefined)
+      }
+      throw error
+    }
+  }
+
   const run = async () => {
     if (inFlight) return false
     inFlight = true
@@ -84,21 +113,49 @@ export function createSubmitController(deps: SubmitControllerDependencies): Subm
 
     try {
       if (!attempt.blob) {
-        attempt.blob = await runStage('exporting', deps.exportBlob)
+        attempt.blob = await runPersistentStage(
+          'exporting',
+          () => attempt!.exportPromise,
+          (promise) => { attempt!.exportPromise = promise },
+          deps.exportBlob
+        )
       }
       if (!attempt.fileId) {
-        attempt.fileId = await runStage('uploading', () => deps.upload(attempt!.blob!, attempt!.id))
-        if (!attempt.fileId) throw new SubmitStageError('uploading', 'failed')
+        attempt.fileId = await runPersistentStage(
+          'uploading',
+          () => attempt!.uploadPromise,
+          (promise) => { attempt!.uploadPromise = promise },
+          async () => {
+            const fileId = await deps.upload(attempt!.blob!, attempt!.id)
+            if (!fileId) throw new Error('Upload returned no file ID')
+            return fileId
+          }
+        )
       }
       if (!attempt.attached) {
-        await runStage('attaching', () => deps.attach(attempt!.fileId!, attempt!.id))
+        await runPersistentStage(
+          'attaching',
+          () => attempt!.attachPromise,
+          (promise) => { attempt!.attachPromise = promise },
+          () => deps.attach(attempt!.fileId!, attempt!.id)
+        )
         attempt.attached = true
       }
       if (!attempt.sent) {
-        await runStage('sending', () => deps.send(attempt!.id))
+        await runPersistentStage(
+          'sending',
+          () => attempt!.sendPromise,
+          (promise) => { attempt!.sendPromise = promise },
+          () => deps.send(attempt!.id)
+        )
         attempt.sent = true
       }
-      await runStage('closing', deps.close)
+      await runPersistentStage(
+        'closing',
+        () => attempt!.closePromise,
+        (promise) => { attempt!.closePromise = promise },
+        deps.close
+      )
       deps.onStage('submitted')
       attempt = null
       return true
