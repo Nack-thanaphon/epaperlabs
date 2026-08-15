@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { BottomBar } from './components/BottomBar'
 import { DrawingBoard } from './components/DrawingBoard'
 import { FloatingTools } from './components/FloatingTools'
+import { FullscreenGate } from './components/FullscreenGate'
 import { ProblemPanel } from './components/ProblemPanel'
 import { useOpenAiHost } from './hooks/useOpenAiHost'
 import { useSubmitHandwriting } from './hooks/useSubmitHandwriting'
@@ -19,7 +20,8 @@ function App() {
   const expand = () => void requestFullscreen()
 
   return (
-    <div className="appShell">
+    <div className={`appShell ${writingReady ? 'writingMode' : 'inlineMode'}`}>
+      {!writingReady ? <FullscreenGate compact onExpand={expand} /> : <>
       <ProblemPanel problem={problem} />
       <DrawingBoard
         canvasRef={board.canvasRef}
@@ -31,7 +33,7 @@ function App() {
         onGestureBlock={board.blockCanvasGesture}
         onExpand={expand}
       />
-      {writingReady && <div className="bottomControls">
+      <div className="bottomControls">
         <FloatingTools
           tool={board.tool}
           color={board.color}
@@ -47,11 +49,12 @@ function App() {
           statusText={statusText}
           onExpand={expand}
           onUndo={board.undo}
+          onRedo={board.redo}
           onClear={board.clearBoard}
           onSubmit={handleSubmit}
         />
       </div>
-      }
+      </>}
     </div>
   )
 }

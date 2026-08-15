@@ -6,6 +6,7 @@ import { distance, exportPaperBlob, midpoint, redrawPaper, screenToPaper, uid } 
 export function useWhiteboard(writingReady: boolean) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const strokesRef = useRef<Stroke[]>([])
+  const redoStrokesRef = useRef<Stroke[]>([])
   const activePointers = useRef(new Map<number, PointerState>())
   const activeStrokeId = useRef<string | null>(null)
   const pinchStart = useRef<{
@@ -56,7 +57,10 @@ export function useWhiteboard(writingReady: boolean) {
     strokesRef.current = strokesRef.current.filter((stroke) =>
       !stroke.points.some((p) => Math.hypot(p.x - point.x, p.y - point.y) <= radius)
     )
-    if (strokesRef.current.length !== before) setRevision((r) => r + 1)
+    if (strokesRef.current.length !== before) {
+      redoStrokesRef.current = []
+      setRevision((r) => r + 1)
+    }
   }, [size])
 
   const onPointerDown = useCallback((event: PointerEvent<HTMLCanvasElement>) => {
@@ -79,9 +83,18 @@ export function useWhiteboard(writingReady: boolean) {
       pointerType: event.pointerType,
     })
 
-    if (activePointers.current.size === 2) {
+    const pointers = Array.from(activePointers.current.values())
+    const isTwoFingerGesture = pointers.length >= 2 && pointers.every((pointer) => pointer.pointerType === 'touch')
+    if (isTwoFingerGesture) {
+      // The first touch can begin a pen stroke before the second touch arrives.
+      // Cancel that active stroke so a two-finger pan/zoom never leaves ink.
+      const activeStroke = strokesRef.current.at(-1)
+      if (activeStroke?.id === activeStrokeId.current) {
+        strokesRef.current = strokesRef.current.slice(0, -1)
+        setRevision((r) => r + 1)
+      }
       activeStrokeId.current = null
-      const [a, b] = Array.from(activePointers.current.values())
+      const [a, b] = pointers
       pinchStart.current = { distance: distance(a, b), midpoint: midpoint(a, b), viewport }
       return
     }
@@ -97,6 +110,7 @@ export function useWhiteboard(writingReady: boolean) {
     if (tool === 'pan') return
 
     const stroke: Stroke = { id: uid(), points: [point], color, size }
+    redoStrokesRef.current = []
     strokesRef.current = [...strokesRef.current, stroke]
     activeStrokeId.current = stroke.id
     setRevision((r) => r + 1)
@@ -118,8 +132,10 @@ export function useWhiteboard(writingReady: boolean) {
       })
     }
 
-    if (activePointers.current.size >= 2 && pinchStart.current) {
-      const [a, b] = Array.from(activePointers.current.values())
+    const pointers = Array.from(activePointers.current.values())
+    const isTwoFingerGesture = pointers.length >= 2 && pointers.every((pointer) => pointer.pointerType === 'touch')
+    if (isTwoFingerGesture && pinchStart.current) {
+      const [a, b] = pointers
       const nextMid = midpoint(a, b)
       const start = pinchStart.current
       const ratio = distance(a, b) / Math.max(1, start.distance)
@@ -175,12 +191,23 @@ export function useWhiteboard(writingReady: boolean) {
   }, [])
 
   const undo = useCallback(() => {
+    const last = strokesRef.current.at(-1)
+    if (!last) return
+    redoStrokesRef.current.push(last)
     strokesRef.current = strokesRef.current.slice(0, -1)
+    setRevision((r) => r + 1)
+  }, [])
+
+  const redo = useCallback(() => {
+    const stroke = redoStrokesRef.current.pop()
+    if (!stroke) return
+    strokesRef.current = [...strokesRef.current, stroke]
     setRevision((r) => r + 1)
   }, [])
 
   const clearBoard = useCallback(() => {
     strokesRef.current = []
+    redoStrokesRef.current = []
     setRevision((r) => r + 1)
   }, [])
 
@@ -202,6 +229,7 @@ export function useWhiteboard(writingReady: boolean) {
     endPointer,
     blockCanvasGesture,
     undo,
+    redo,
     clearBoard,
     exportBlob,
   }

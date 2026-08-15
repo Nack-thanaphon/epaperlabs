@@ -21,19 +21,13 @@ export function useOpenAiHost() {
   }, [])
 
   useEffect(() => {
-    // ChatGPT can inject its bridge after the React app mounts. Retry briefly so
-    // iPad starts in a useful writing area instead of a collapsed inline card.
+    // ChatGPT can inject its bridge after the React app mounts.
     const syncProblem = () => setProblem(window.openai?.toolInput?.problem?.trim() ?? '')
     syncProblem()
-    void requestFullscreen()
-    const retries = [350, 1200].map((delay) => window.setTimeout(() => {
-      syncProblem()
-      void requestFullscreen()
-    }, delay))
-    return () => retries.forEach(window.clearTimeout)
   }, [requestFullscreen])
 
   useEffect(() => {
+    const syncProblem = () => setProblem(window.openai?.toolInput?.problem?.trim() ?? '')
     const syncWritingMode = () => {
       setWritingReady(
         window.openai
@@ -41,8 +35,13 @@ export function useOpenAiHost() {
           : Boolean(document.fullscreenElement)
       )
     }
-    const onHostGlobals = () => syncWritingMode()
-    syncWritingMode()
+    const onHostGlobals = () => {
+      // The host can publish tool input after the widget has mounted.
+      // Keep the problem and fullscreen gate in sync from the same update.
+      syncProblem()
+      syncWritingMode()
+    }
+    onHostGlobals()
     window.addEventListener('openai:set_globals', onHostGlobals)
     document.addEventListener('fullscreenchange', syncWritingMode)
     return () => {

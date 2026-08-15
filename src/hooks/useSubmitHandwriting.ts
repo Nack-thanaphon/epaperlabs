@@ -23,21 +23,35 @@ export function useSubmitHandwriting({ strokesRef, exportBlob }: UseSubmitHandwr
       const blob = await exportBlob()
       const file = new File([blob], 'epaperlabs-handwriting.png', { type: 'image/png' })
 
-      if (window.openai?.uploadFile) {
-        const { fileId } = await window.openai.uploadFile(file, { library: true })
-        window.openai.setWidgetState?.({
+      const bridge = window.openai
+      if (bridge) {
+        if (!bridge.uploadFile || !bridge.setWidgetState || !bridge.sendFollowUpMessage) {
+          throw new Error('ChatGPT bridge is not ready; please try Submit again')
+        }
+        // Do not also wait for the optional ChatGPT file-library copy. The image
+        // only needs to be attached to this conversation, so this is faster and
+        // has one less host operation that can delay the follow-up.
+        const { fileId } = await bridge.uploadFile(file)
+        if (!fileId) throw new Error('ChatGPT did not return an uploaded image ID')
+
+        await bridge.setWidgetState({
           modelContent:
-            'The user submitted handwritten work from E-PaperLabs. Review the attached image visually. Preserve equations, arrows, fractions, crossed-out work, and spatial structure.',
+            'The user submitted handwritten work. The PNG in imageIds is the answer to inspect visually. Read the image before replying; preserve equations, arrows, fractions, crossed-out work, and spatial structure.',
           privateContent: {
-            source: 'epaperlabs-perfect-freehand-board',
+            source: 'papa-handwriting-board',
             strokeCount: strokesRef.current.length,
             paperWidth: PAPER_WIDTH,
             paperHeight: PAPER_HEIGHT,
+            fileId,
           },
           imageIds: [fileId],
         })
-        await window.openai.sendFollowUpMessage?.({
-          prompt: '[E-PaperLabs] ผมส่งคำตอบที่เขียนด้วยลายมือแล้วครับ ช่วยตรวจให้หน่อย',
+        // setWidgetState is synchronous in the documented bridge, but wait one
+        // render frame so its postMessage reaches the host before asking the
+        // model to read the attached image.
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+        await bridge.sendFollowUpMessage({
+          prompt: '[Papa] ผมส่งคำตอบลายมือเป็นรูปภาพแล้ว กรุณาดูรูปที่แนบมาก่อน แล้วตรวจวิธีคิดให้ผมครับ',
           scrollToBottom: true,
         })
         setStatus('submitted')

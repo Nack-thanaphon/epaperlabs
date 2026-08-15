@@ -19,7 +19,7 @@ declare global {
         modelContent?: string
         privateContent?: unknown
         imageIds?: string[]
-      }) => void
+      }) => void | Promise<void>
       sendFollowUpMessage?: (message: { prompt: string; scrollToBottom?: boolean }) => Promise<void>
       requestDisplayMode?: (request: { mode: 'inline' | 'fullscreen' | 'picture-in-picture' }) => Promise<void>
       displayMode?: 'inline' | 'fullscreen' | 'picture-in-picture'
