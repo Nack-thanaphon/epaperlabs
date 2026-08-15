@@ -9,6 +9,7 @@ interface DrawingBoardProps {
   onPointerDown: (event: PointerEvent<HTMLCanvasElement>) => void
   onPointerMove: (event: PointerEvent<HTMLCanvasElement>) => void
   onPointerUp: (event: PointerEvent<HTMLCanvasElement>) => void
+  onPointerCancel: (event: PointerEvent<HTMLCanvasElement>) => void
   onGestureBlock: (event: TouchEvent<HTMLCanvasElement> | WheelEvent<HTMLCanvasElement>) => void
   onExpand: () => void
 }
@@ -20,6 +21,7 @@ export function DrawingBoard({
   onPointerDown,
   onPointerMove,
   onPointerUp,
+  onPointerCancel,
   onGestureBlock,
   onExpand,
 }: DrawingBoardProps) {
@@ -31,7 +33,8 @@ export function DrawingBoard({
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
-        onPointerCancel={onPointerUp}
+        onPointerCancel={onPointerCancel}
+        onLostPointerCapture={onPointerCancel}
         onTouchStart={onGestureBlock}
         onTouchMove={onGestureBlock}
         onTouchEnd={onGestureBlock}

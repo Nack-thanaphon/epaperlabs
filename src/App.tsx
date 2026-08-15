@@ -30,6 +30,7 @@ function App() {
         onPointerDown={board.onPointerDown}
         onPointerMove={board.onPointerMove}
         onPointerUp={board.endPointer}
+        onPointerCancel={board.cancelPointer}
         onGestureBlock={board.blockCanvasGesture}
         onExpand={expand}
       />
