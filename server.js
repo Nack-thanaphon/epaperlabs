@@ -2,7 +2,7 @@
 // Production/serverless handler lives in lib/mcp-app.mjs and api/mcp.js.
 
 import { createServer } from 'node:http'
-import { handleMcpRequest } from './lib/mcp-app.mjs'
+import { handleIncidentReport, handleMcpRequest } from './lib/mcp-app.mjs'
 
 const port = Number(process.env.PORT ?? 3000)
 const MCP_PATH = '/mcp'
@@ -17,7 +17,12 @@ const httpServer = createServer(async (req, res) => {
 
   if (req.method === 'GET' && url.pathname === '/') {
     res.writeHead(200, { 'content-type': 'text/plain' })
-    res.end('Papa MCP server — POST to /mcp')
+    res.end('Papa MCP server — POST to /mcp, POST diagnostics to /api/incident')
+    return
+  }
+
+  if (url.pathname === '/api/incident') {
+    await handleIncidentReport(req, res)
     return
   }
 

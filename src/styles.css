@@ -238,6 +238,69 @@ button {
   background: rgba(37, 99, 235, 0.22);
 }
 
+.debugPanel {
+  margin: 10px 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(220, 38, 38, 0.35);
+  border-radius: 12px;
+  background: rgba(254, 242, 242, 0.96);
+  color: #7f1d1d;
+  font-size: 13px;
+}
+
+.debugPanelHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.debugCode {
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.debugActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.debugButton {
+  min-height: 36px;
+  padding: 6px 12px;
+  border: 1px solid rgba(127, 29, 29, 0.35);
+  border-radius: 10px;
+  background: #fff;
+  color: #7f1d1d;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.debugButton.primary {
+  background: #7f1d1d;
+  color: #fff;
+}
+
+.debugButton:disabled {
+  opacity: 0.6;
+}
+
+.debugDetail {
+  margin: 10px 0 0;
+  padding: 10px;
+  border-radius: 8px;
+  background: rgba(127, 29, 29, 0.08);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-x: auto;
+}
+
 .submitButton,
 .toolButton.primary {
   border-color: #2563eb;

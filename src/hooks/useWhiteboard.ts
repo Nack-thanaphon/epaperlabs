@@ -5,7 +5,13 @@ import { PointerSession, type SessionPointer } from '../input/pointerSession'
 import type { Stroke, Tool, Viewport } from '../types'
 import { distance, exportPaperBlob, midpoint, redrawPaper, screenToPaper, uid } from '../utils/drawing'
 
-export function useWhiteboard(writingReady: boolean) {
+export function useWhiteboard(
+  writingReady: boolean,
+  options?: {
+    onCanvasReady?: () => void
+    onFirstInk?: () => void
+  }
+) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const strokesRef = useRef<Stroke[]>([])
   const historyRef = useRef(new BoardHistory())
@@ -36,7 +42,8 @@ export function useWhiteboard(writingReady: boolean) {
     const canvas = canvasRef.current
     if (!canvas) return
     redrawPaper(canvas, nextViewport, strokesRef.current)
-  }, [viewport])
+    options?.onCanvasReady?.()
+  }, [viewport, options])
 
   useEffect(() => {
     redraw()
@@ -156,8 +163,9 @@ export function useWhiteboard(writingReady: boolean) {
     const stroke: Stroke = { id: uid(), points: [point], color, size }
     strokesRef.current = [...strokesRef.current, stroke]
     activeStrokeId.current = stroke.id
+    options?.onFirstInk?.()
     setRevision((r) => r + 1)
-  }, [beginPinch, cancelTouchStroke, color, eraseAt, eventPointer, size, tool, viewport, writingReady])
+  }, [beginPinch, cancelTouchStroke, color, eraseAt, eventPointer, options, size, tool, viewport, writingReady])
 
   const onPointerMove = useCallback((event: PointerEvent<HTMLCanvasElement>) => {
     if (!writingReady) return

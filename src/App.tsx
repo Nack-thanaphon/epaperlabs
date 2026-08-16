@@ -1,6 +1,7 @@
 import React, { type CSSProperties } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BottomBar } from './components/BottomBar'
+import { DebugPanel } from './components/DebugPanel'
 import { DrawingBoard } from './components/DrawingBoard'
 import { FloatingTools } from './components/FloatingTools'
 import { FullscreenGate } from './components/FullscreenGate'
@@ -10,15 +11,40 @@ import { useSubmitHandwriting } from './hooks/useSubmitHandwriting'
 import { useWhiteboard } from './hooks/useWhiteboard'
 import './styles.css'
 
+const INCIDENT_ENDPOINT =
+  (import.meta.env?.VITE_INCIDENT_ENDPOINT as string | undefined) ??
+  'https://epaperlabs.vercel.app/api/incident'
+
 function App() {
-  const { problem, writingReady, safeArea, requestFullscreen } = useOpenAiHost()
-  const board = useWhiteboard(writingReady)
+  const host = useOpenAiHost()
+  const { problem, writingReady, safeArea, requestFullscreen } = host
+  const board = useWhiteboard(writingReady, {
+    onCanvasReady: host.markCanvasReady,
+    onFirstInk: host.markFirstInk,
+  })
   const { status, statusText, isSubmitting, isBoardLocked, handleSubmit } = useSubmitHandwriting({
     strokesRef: board.strokesRef,
     exportBlob: board.exportBlob,
     beforeSubmit: board.cancelInput,
+    onDiagnosticFailure: host.reportSubmitFailure,
   })
   const expand = () => void requestFullscreen()
+
+  const sendReport = async () => {
+    if (!host.launchError) return
+    host.setReportState('sending')
+    try {
+      const response = await fetch(INCIDENT_ENDPOINT, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(host.launchError),
+      })
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      host.setReportState('sent')
+    } catch {
+      host.setReportState('failed')
+    }
+  }
 
   return (
     <div
@@ -30,7 +56,15 @@ function App() {
         '--host-safe-left': `${safeArea.left}px`,
       } as CSSProperties}
     >
-      {!writingReady ? <FullscreenGate compact onExpand={expand} /> : <>
+      {!writingReady ? <>
+        <FullscreenGate compact onExpand={expand} />
+        <DebugPanel
+          error={host.launchError}
+          onRetry={host.retryLaunch}
+          onSendReport={sendReport}
+          reportState={host.reportState}
+        />
+      </> : <>
       <div className="bottomControls">
         <FloatingTools
           tool={board.tool}
