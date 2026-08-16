@@ -1,4 +1,13 @@
-export type SubmitStatus = 'idle' | 'submitting' | 'submitted' | 'error' | 'empty'
+export type SubmitStatus =
+  | 'idle'
+  | 'exporting'
+  | 'uploading'
+  | 'attaching'
+  | 'sending'
+  | 'closing'
+  | 'submitted'
+  | 'failed'
+  | 'empty'
 export type Tool = 'pen' | 'eraser' | 'pan'
 export type Point = { x: number; y: number; pressure: number }
 export type Stroke = { id: string; points: Point[]; color: string; size: number }
@@ -19,10 +28,18 @@ declare global {
         modelContent?: string
         privateContent?: unknown
         imageIds?: string[]
-      }) => void
+      }) => void | Promise<void>
       sendFollowUpMessage?: (message: { prompt: string; scrollToBottom?: boolean }) => Promise<void>
+      requestClose?: () => Promise<void>
       requestDisplayMode?: (request: { mode: 'inline' | 'fullscreen' | 'picture-in-picture' }) => Promise<void>
       displayMode?: 'inline' | 'fullscreen' | 'picture-in-picture'
+      safeArea?: {
+        top?: number
+        right?: number
+        bottom?: number
+        left?: number
+        insets?: { top?: number; right?: number; bottom?: number; left?: number }
+      }
       toolInput?: { problem?: string }
     }
   }

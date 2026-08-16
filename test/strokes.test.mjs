@@ -8,6 +8,7 @@ import {
   beginStroke,
   addPoint,
   undo,
+  redo,
   clearStrokes,
   strokeCount,
   pointCount,
@@ -82,6 +83,25 @@ describe("undo", () => {
     const store = createStore();
     assert.equal(undo(store), false);
     assert.equal(strokeCount(store), 0);
+  });
+});
+
+describe("redo", () => {
+  test("redo restores the last stroke removed by undo", () => {
+    const store = createStore();
+    const redoStack = [];
+    beginStroke(store, { x: 10, y: 10 });
+    beginStroke(store, { x: 20, y: 20 });
+
+    assert.equal(undo(store, redoStack), true);
+    assert.equal(strokeCount(store), 1);
+    assert.equal(redo(store, redoStack), true);
+    assert.equal(strokeCount(store), 2);
+    assert.deepEqual(store[1], [{ x: 20, y: 20, pressure: 0.5 }]);
+  });
+
+  test("redo on an empty redo stack returns false", () => {
+    assert.equal(redo(createStore(), []), false);
   });
 });
 

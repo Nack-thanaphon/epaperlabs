@@ -1,4 +1,4 @@
-// E-PaperLabs local MCP server.
+// Papa local MCP server.
 // Production/serverless handler lives in lib/mcp-app.mjs and api/mcp.js.
 
 import { createServer } from 'node:http'
@@ -17,7 +17,7 @@ const httpServer = createServer(async (req, res) => {
 
   if (req.method === 'GET' && url.pathname === '/') {
     res.writeHead(200, { 'content-type': 'text/plain' })
-    res.end('E-PaperLabs MCP server — POST to /mcp')
+    res.end('Papa MCP server — POST to /mcp')
     return
   }
 
@@ -30,5 +30,5 @@ const httpServer = createServer(async (req, res) => {
 })
 
 httpServer.listen(port, () => {
-  console.log(`\n  E-PaperLabs MCP server listening on http://localhost:${port}${MCP_PATH}\n`)
+  console.log(`\n  Papa MCP server listening on http://localhost:${port}${MCP_PATH}\n`)
 })

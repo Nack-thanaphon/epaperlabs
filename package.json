@@ -5,10 +5,15 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "dev": "node --watch server.js",
+    "dev": "vite --host 127.0.0.1",
+    "dev:mcp": "node --watch server.js",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
-    "test": "node --test test/*.test.mjs"
+    "typecheck": "tsc --noEmit",
+    "test:node": "node --test test/*.test.mjs",
+    "test:client": "vitest run",
+    "test": "npm run test:node && npm run test:client",
+    "verify": "npm run typecheck && npm test && npm run build"
   },
   "dependencies": {
     "@modelcontextprotocol/ext-apps": "^1.0.1",
@@ -19,5 +24,14 @@
     "react-dom": "^19.2.8",
     "vite": "^8.2.1",
     "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.4",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "jsdom": "^30.0.1",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.10"
   }
 }
