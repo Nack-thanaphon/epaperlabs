@@ -28,11 +28,12 @@ const expectedLegacyResources = [
   'ui://papa/papa-v4-bottom-launcher.html',
   'ui://papa/papa-v5-undo-redo-touch.html',
   'ui://papa/papa-v6-stable-workflow.html',
+  'ui://papa/papa-v7-one-row-controls.html',
 ]
 
 describe('MCP compatibility contract', () => {
-  test('publishes the one-row v7 resource as current', () => {
-    assert.equal(RESOURCE_URI, 'ui://papa/papa-v7-one-row-controls.html')
+  test('publishes the compact top-toolbar v8 resource as current', () => {
+    assert.equal(RESOURCE_URI, 'ui://papa/papa-v8-compact-top-toolbar.html')
   })
 
   test('keeps every previously published resource URI', () => {

@@ -31,29 +31,14 @@ function App() {
       } as CSSProperties}
     >
       {!writingReady ? <FullscreenGate compact onExpand={expand} /> : <>
-      <ProblemPanel problem={problem} />
-      <DrawingBoard
-        canvasRef={board.canvasRef}
-        tool={board.tool}
-        writingReady={writingReady}
-        inputLocked={isBoardLocked}
-        onPointerDown={board.onPointerDown}
-        onPointerMove={board.onPointerMove}
-        onPointerUp={board.endPointer}
-        onPointerCancel={board.cancelPointer}
-        onGestureBlock={board.blockCanvasGesture}
-        onExpand={expand}
-      />
       <div className="bottomControls">
         <FloatingTools
           tool={board.tool}
           color={board.color}
           size={board.size}
-          viewport={board.viewport}
           onToolChange={board.setTool}
           onColorChange={board.setColor}
           onSizeChange={board.setSize}
-          onZoom={board.setZoom}
         />
         <BottomBar
           status={status}
@@ -68,6 +53,19 @@ function App() {
           onSubmit={handleSubmit}
         />
       </div>
+      <ProblemPanel problem={problem} />
+      <DrawingBoard
+        canvasRef={board.canvasRef}
+        tool={board.tool}
+        writingReady={writingReady}
+        inputLocked={isBoardLocked}
+        onPointerDown={board.onPointerDown}
+        onPointerMove={board.onPointerMove}
+        onPointerUp={board.endPointer}
+        onPointerCancel={board.cancelPointer}
+        onGestureBlock={board.blockCanvasGesture}
+        onExpand={expand}
+      />
       </>}
     </div>
   )

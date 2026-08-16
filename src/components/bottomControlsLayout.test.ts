@@ -5,6 +5,7 @@ declare const process: {
 }
 
 const css = process.getBuiltinModule('fs').readFileSync(new URL('../styles.css', import.meta.url), 'utf8')
+const appSource = process.getBuiltinModule('fs').readFileSync(new URL('../App.tsx', import.meta.url), 'utf8')
 
 function rule(selector: string) {
   const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -23,5 +24,13 @@ describe('bottom controls layout', () => {
     expect(rule('.floatingTools')).toContain('overflow-x: auto')
     expect(rule('.floatingTools')).toContain('flex: 1 1 auto')
     expect(rule('.bottomBar')).toContain('flex: 0 0 auto')
+  })
+
+  it('places the compact controls above the problem and paper', () => {
+    expect(appSource.indexOf('className="bottomControls"')).toBeLessThan(appSource.indexOf('<ProblemPanel'))
+    expect(appSource.indexOf('<ProblemPanel')).toBeLessThan(appSource.indexOf('<DrawingBoard'))
+    expect(rule('.appShell.writingMode')).toContain('grid-template-rows: auto auto 1fr')
+    expect(rule('.bottomControls')).toContain('max-height: 56px')
+    expect(rule('.bottomControls')).toContain('padding-bottom: 0')
   })
 })

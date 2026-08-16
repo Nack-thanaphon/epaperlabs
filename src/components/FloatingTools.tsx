@@ -1,26 +1,22 @@
 import { COLORS, SIZE_LABELS, SIZES } from '../constants'
-import type { Tool, Viewport } from '../types'
+import type { Tool } from '../types'
 
 interface FloatingToolsProps {
   tool: Tool
   color: string
   size: number
-  viewport: Viewport
   onToolChange: (tool: Tool) => void
   onColorChange: (color: string) => void
   onSizeChange: (size: number) => void
-  onZoom: (scale: number) => void
 }
 
 export function FloatingTools({
   tool,
   color,
   size,
-  viewport,
   onToolChange,
   onColorChange,
   onSizeChange,
-  onZoom,
 }: FloatingToolsProps) {
   return (
     <div className="floatingTools" aria-label="Drawing tools">
@@ -46,10 +42,6 @@ export function FloatingTools({
           {SIZE_LABELS[value]}
         </button>
       ))}
-      <span className="separator" />
-      <button onClick={() => onZoom(viewport.scale / 1.25)}>−</button>
-      <button onClick={() => onZoom(1)}>{Math.round(viewport.scale * 100)}%</button>
-      <button onClick={() => onZoom(viewport.scale * 1.25)}>＋</button>
     </div>
   )
 }
