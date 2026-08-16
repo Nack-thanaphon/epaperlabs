@@ -17,6 +17,7 @@ export function useOpenAiHost() {
   const [safeArea, setSafeArea] = useState(EMPTY_SAFE_AREA)
   const [launchError, setLaunchError] = useState<DiagnosticSnapshot | null>(null)
   const [reportState, setReportState] = useState<'idle' | 'sending' | 'sent' | 'failed'>('idle')
+  const [fullscreenRequested, setFullscreenRequested] = useState(false)
   const fullscreenTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const clearFullscreenTimer = () => {
@@ -28,6 +29,7 @@ export function useOpenAiHost() {
 
   const requestFullscreen = useCallback(async () => {
     setLaunchError(null)
+    setFullscreenRequested(true)
     try {
       if (window.openai?.requestDisplayMode) {
         recorder.record('fullscreen_requested')
@@ -104,22 +106,27 @@ export function useOpenAiHost() {
     window.addEventListener('openai:set_globals', onHostGlobals)
     document.addEventListener('fullscreenchange', syncWritingMode)
 
-    // Bootstrap watchdog: if the canvas never becomes ready (stuck blank
-    // board), surface E03 instead of failing silently.
-    const bootstrapTimer = setTimeout(() => {
-      if (!recorder.has('canvas_ready')) {
-        recorder.fail('E03', 'canvas not ready after bootstrap window')
-        setLaunchError(recorder.snapshot())
-      }
-    }, BOOTSTRAP_TIMEOUT_MS)
-
     return () => {
       window.removeEventListener('openai:set_globals', onHostGlobals)
       document.removeEventListener('fullscreenchange', syncWritingMode)
-      clearTimeout(bootstrapTimer)
       clearFullscreenTimer()
     }
   }, [recorder])
+
+  // Bootstrap watchdog: only arm AFTER the user asked for fullscreen. In
+  // inline mode the canvas is intentionally absent (compact launcher), so a
+  // missing canvas there is not an error — E03 previously fired as a false
+  // positive while the widget sat idle in inline mode.
+  useEffect(() => {
+    if (!fullscreenRequested) return
+    const bootstrapTimer = setTimeout(() => {
+      if (!recorder.has('canvas_ready')) {
+        recorder.fail('E03', 'canvas not ready after fullscreen bootstrap window')
+        setLaunchError(recorder.snapshot())
+      }
+    }, BOOTSTRAP_TIMEOUT_MS)
+    return () => clearTimeout(bootstrapTimer)
+  }, [fullscreenRequested, recorder])
 
   const markCanvasReady = useCallback(() => {
     if (!recorder.has('canvas_ready')) recorder.record('canvas_ready')
