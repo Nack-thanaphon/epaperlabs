@@ -7,6 +7,7 @@ interface UseSubmitHandwritingOptions {
   strokesRef: RefObject<Stroke[]>
   exportBlob: () => Promise<Blob>
   beforeSubmit?: () => void
+  onDiagnosticFailure?: (detail: string) => void
 }
 
 const ACTIVE_STATUSES = new Set<SubmitStatus>([
@@ -26,7 +27,7 @@ function bridgeOrThrow() {
   return bridge
 }
 
-export function useSubmitHandwriting({ strokesRef, exportBlob, beforeSubmit }: UseSubmitHandwritingOptions) {
+export function useSubmitHandwriting({ strokesRef, exportBlob, beforeSubmit, onDiagnosticFailure }: UseSubmitHandwritingOptions) {
   const [status, setStatus] = useState<SubmitStatus>('idle')
   const [failureText, setFailureText] = useState('')
   const statusText = useMemo(
@@ -98,6 +99,7 @@ export function useSubmitHandwriting({ strokesRef, exportBlob, beforeSubmit }: U
         }
         setFailureText(labels[error.stage])
         setStatus('failed')
+        onDiagnosticFailure?.(`${error.stage} ${error.code}: ${error.message}`)
       },
       timeoutMs: 20_000,
     })
