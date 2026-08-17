@@ -152,11 +152,8 @@ export function createSubmitController(deps: SubmitControllerDependencies): Subm
         )
         attempt.sent = true
       }
-      // Deliberately DO NOT auto-close here. The board stays open in the
-      // 'submitted' state so the learner can still see their work while the
-      // assistant answers; returning to the chat is an explicit user action
-      // (returnToHost). Auto-closing raced the host and made the submission
-      // feel like it vanished (owner report 2026-08-17).
+      // Do not call ChatGPT display-mode APIs after send. Those promises hang
+      // the iframe with no error. The learner stays on the board.
       deps.onStage('submitted')
       returnToHostAvailable = true
       attempt = null

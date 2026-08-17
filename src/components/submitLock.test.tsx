@@ -30,7 +30,6 @@ describe('submit lock during in-flight stages', () => {
         onRedo={vi.fn()}
         onClear={vi.fn()}
         onSubmit={vi.fn()}
-        onReturnToHost={vi.fn()}
       />
     </>)
     const view = within(container)
@@ -65,7 +64,6 @@ describe('submit lock during in-flight stages', () => {
         onRedo={vi.fn()}
         onClear={vi.fn()}
         onSubmit={vi.fn()}
-        onReturnToHost={vi.fn()}
       />
     </>)
     const view = within(container)

@@ -44,8 +44,8 @@ export interface DiagnosticSnapshot {
   }
 }
 
-const BUILD_VERSION = 'papa-v11-stay-open'
-const RESOURCE_URI = 'ui://papa/papa-v11-stay-open.html'
+const BUILD_VERSION = 'papa-v12-local'
+const RESOURCE_URI = 'ui://papa/papa-v12-local.html'
 
 function now(): number {
   return Math.round(
@@ -115,10 +115,7 @@ export function createLaunchRecorder() {
     if (forcedCode) return forcedCode
     const has = (name: TimelineEventName) => seen.has(name)
     if (!has('javascript_started')) return 'E01'
-    if (!has('openai_bridge_ready')) return 'E02'
     if (!has('canvas_ready')) return 'E03'
-    if (has('fullscreen_failed')) return 'E04'
-    if (!has('fullscreen_confirmed')) return 'E05'
     return null
   }
 
@@ -129,7 +126,7 @@ export function createLaunchRecorder() {
     metrics: {
       canvasReadyMs: metric('javascript_started', 'canvas_ready'),
       fullscreenActivationMs: metric('fullscreen_requested', 'fullscreen_confirmed'),
-      firstInkLatencyMs: metric('fullscreen_confirmed', 'first_ink'),
+      firstInkLatencyMs: metric('canvas_ready', 'first_ink'),
     },
     context: {
       buildVersion: BUILD_VERSION,

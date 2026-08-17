@@ -11,12 +11,12 @@ describe('createLaunchRecorder', () => {
     expect(recorder.snapshot().code).toBe('E01')
   })
 
-  it('derives E02 when bridge never became ready', () => {
+  it('does not treat a missing ChatGPT fullscreen mode as an error', () => {
     const recorder = createLaunchRecorder()
     recorder.record('javascript_started')
     recorder.record('react_mounted')
     recorder.record('canvas_ready')
-    expect(recorder.snapshot().code).toBe('E02')
+    expect(recorder.snapshot().code).toBeNull()
   })
 
   it('derives E03 when canvas never became ready', () => {
@@ -37,12 +37,14 @@ describe('createLaunchRecorder', () => {
     expect(recorder.snapshot().code).toBe('E04')
   })
 
-  it('derives E05 when fullscreen was requested but never confirmed', () => {
+  it('records E05 only when explicitly failed', () => {
     const recorder = createLaunchRecorder()
     recorder.record('javascript_started')
     recorder.record('openai_bridge_ready')
     recorder.record('canvas_ready')
     recorder.record('fullscreen_requested')
+    expect(recorder.snapshot().code).toBeNull()
+    recorder.fail('E05', 'host still inline')
     expect(recorder.snapshot().code).toBe('E05')
   })
 

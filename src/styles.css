@@ -35,6 +35,20 @@ button {
   touch-action: none;
 }
 
+.statusStrip {
+  z-index: 20;
+  flex: 0 0 auto;
+  padding: 4px 10px;
+  font-size: 11px;
+  line-height: 1.3;
+  letter-spacing: 0.01em;
+  color: #cbd5e1;
+  background: #111827;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .appShell.writingMode {
   position: fixed;
   inset: 0;
@@ -218,6 +232,13 @@ button {
   font-weight: 700;
   cursor: pointer;
   touch-action: manipulation;
+}
+
+.chromeTop {
+  z-index: 20;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .bottomControls {

@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } fro
 import { PAPER_HEIGHT, PAPER_WIDTH, STATUS_TEXT } from '../constants'
 import { createSubmitController, type SubmitController, type SubmitStageError } from '../submit/submitMachine'
 import { clearHostDraft } from '../persistence/widgetDraft'
-import { returnToInlineMode } from '../submit/returnToInline'
 import type { Stroke, SubmitStatus } from '../types'
 
 interface UseSubmitHandwritingOptions {
@@ -12,16 +11,14 @@ interface UseSubmitHandwritingOptions {
   onDiagnosticFailure?: (detail: string) => void
   strokeRevision?: number
   problemKey?: string
-  onReturnToChat?: () => void
+  onStageLog?: (line: string) => void
 }
 
-const ACTIVE_STATUSES = new Set<SubmitStatus>([
+const IN_FLIGHT_STATUSES = new Set<SubmitStatus>([
   'exporting',
   'uploading',
   'attaching',
   'sending',
-  'closing',
-  'submitted',
 ])
 
 function bridgeOrThrow() {
@@ -32,7 +29,15 @@ function bridgeOrThrow() {
   return bridge
 }
 
-export function useSubmitHandwriting({ strokesRef, exportBlob, beforeSubmit, onDiagnosticFailure, strokeRevision = 0, problemKey = '', onReturnToChat }: UseSubmitHandwritingOptions) {
+export function useSubmitHandwriting({
+  strokesRef,
+  exportBlob,
+  beforeSubmit,
+  onDiagnosticFailure,
+  strokeRevision = 0,
+  problemKey = '',
+  onStageLog,
+}: UseSubmitHandwritingOptions) {
   const [status, setStatus] = useState<SubmitStatus>('idle')
   const [failureText, setFailureText] = useState('')
   const statusText = useMemo(
@@ -77,11 +82,12 @@ export function useSubmitHandwriting({ strokesRef, exportBlob, beforeSubmit, onD
         })
       },
       close: async () => {
-        await returnToInlineMode()
+        // Display-mode / requestClose hangs ChatGPT's iframe. Stay on the board.
       },
       onStage: (stage) => {
         setFailureText('')
         setStatus(stage)
+        onStageLog?.(stage)
         if (stage === 'submitted') void clearHostDraft()
       },
       onFailure: (error: SubmitStageError) => {
@@ -92,7 +98,7 @@ export function useSubmitHandwriting({ strokesRef, exportBlob, beforeSubmit, onD
           sending: error.code === 'timeout'
             ? 'รอการส่งเดิม — แตะตรวจอีกครั้ง'
             : 'ส่งเข้าแชตไม่สำเร็จ — งานเดิมยังอยู่',
-          closing: 'ส่งแล้ว — แตะเพื่อกลับแชต',
+          closing: 'ส่งแล้ว — ดูคำตอบในแชต',
         }
         setFailureText(labels[error.stage])
         setStatus('failed')
@@ -145,27 +151,20 @@ export function useSubmitHandwriting({ strokesRef, exportBlob, beforeSubmit, onD
     setStatus('idle')
   }, [problemKey])
 
-  const beginNewAttempt = useCallback(() => {
-    controllerRef.current?.reset()
-    setFailureText('')
-    setStatus('idle')
-  }, [])
-
-  const handleReturnToHost = useCallback(async () => {
-    const controller = controllerRef.current!
-    if (!controller.hasSubmitted()) return
-    onReturnToChat?.()
-    void returnToInlineMode()
-    beginNewAttempt()
-  }, [beginNewAttempt, onReturnToChat])
+  useEffect(() => {
+    if (status !== 'submitted') return
+    const timer = window.setTimeout(() => {
+      controllerRef.current?.reset()
+      setStatus('idle')
+    }, 2_000)
+    return () => window.clearTimeout(timer)
+  }, [status])
 
   return {
     status,
     statusText,
-    isSubmitting: ACTIVE_STATUSES.has(status),
-    isBoardLocked: ACTIVE_STATUSES.has(status),
+    isSubmitting: IN_FLIGHT_STATUSES.has(status),
+    isBoardLocked: IN_FLIGHT_STATUSES.has(status),
     handleSubmit,
-    handleReturnToHost,
-    beginNewAttempt,
   }
 }

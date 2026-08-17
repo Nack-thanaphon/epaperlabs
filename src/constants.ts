@@ -9,7 +9,6 @@ export const EXPORT_SCALE = 1
 export const EXPORT_PADDING = 80
 export const EXPORT_MAX_EDGE = 1600
 export const GRID_STEP = 80
-export const WRITING_EXIT_DEBOUNCE_MS = 300
 export const DRAFT_PERSIST_MS = 400
 export const MAX_DRAFT_BYTES = 96 * 1024
 export const MIN_SCALE = 0.3

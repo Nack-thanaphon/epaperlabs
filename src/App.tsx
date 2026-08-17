@@ -4,8 +4,8 @@ import { BottomBar } from './components/BottomBar'
 import { DebugPanel } from './components/DebugPanel'
 import { DrawingBoard } from './components/DrawingBoard'
 import { FloatingTools } from './components/FloatingTools'
-import { FullscreenGate } from './components/FullscreenGate'
 import { ProblemPanel } from './components/ProblemPanel'
+import { StatusStrip } from './components/StatusStrip'
 import { useOpenAiHost } from './hooks/useOpenAiHost'
 import { useSubmitHandwriting } from './hooks/useSubmitHandwriting'
 import { useWhiteboard } from './hooks/useWhiteboard'
@@ -17,25 +17,21 @@ const INCIDENT_ENDPOINT =
 
 function App() {
   const host = useOpenAiHost()
-  const { problem, writingReady, safeArea, requestFullscreen, exerciseKey } = host
-  const board = useWhiteboard(writingReady, {
+  const { problem, safeArea, exerciseKey } = host
+  const board = useWhiteboard(true, {
     onCanvasReady: host.markCanvasReady,
     onFirstInk: host.markFirstInk,
     problemKey: exerciseKey,
   })
-  const { status, statusText, isSubmitting, isBoardLocked, handleSubmit, handleReturnToHost, beginNewAttempt } = useSubmitHandwriting({
+  const { status, statusText, isSubmitting, isBoardLocked, handleSubmit } = useSubmitHandwriting({
     strokesRef: board.strokesRef,
     exportBlob: board.exportBlob,
     beforeSubmit: board.cancelInput,
     onDiagnosticFailure: host.reportSubmitFailure,
     strokeRevision: board.revision,
     problemKey: exerciseKey,
-    onReturnToChat: host.markCollapsed,
+    onStageLog: host.pushLog,
   })
-  const expand = () => {
-    beginNewAttempt()
-    void requestFullscreen()
-  }
 
   const sendReport = async () => {
     if (!host.launchError) return
@@ -55,7 +51,7 @@ function App() {
 
   return (
     <div
-      className={`appShell ${writingReady ? 'writingMode' : 'inlineMode'}`}
+      className="appShell writingMode"
       style={{
         '--host-safe-top': `${safeArea.top}px`,
         '--host-safe-right': `${safeArea.right}px`,
@@ -63,20 +59,14 @@ function App() {
         '--host-safe-left': `${safeArea.left}px`,
       } as CSSProperties}
     >
-      {!writingReady && <>
-        <FullscreenGate
-          compact
-          sent={status === 'submitted'}
-          onExpand={expand}
-        />
-        <DebugPanel
-          error={host.launchError}
-          onRetry={host.retryLaunch}
-          onSendReport={sendReport}
-          reportState={host.reportState}
-        />
-      </>}
-      {writingReady && <>
+      <div className="chromeTop">
+      <StatusStrip buildVersion={host.buildVersion} status={status} logLine={host.logLine} />
+      <DebugPanel
+        error={host.launchError}
+        onRetry={host.retryLaunch}
+        onSendReport={sendReport}
+        reportState={host.reportState}
+      />
       <div className="bottomControls">
         <FloatingTools
           tool={board.tool}
@@ -97,17 +87,16 @@ function App() {
           onRedo={board.redo}
           onClear={board.clearBoard}
           onSubmit={handleSubmit}
-          onReturnToHost={handleReturnToHost}
         />
       </div>
+      </div>
       <ProblemPanel problem={problem} />
-      </>}
       <DrawingBoard
         canvasRef={board.canvasRef}
         tool={board.tool}
-        writingReady={writingReady}
+        writingReady
         inputLocked={isBoardLocked}
-        parked={!writingReady}
+        parked={false}
         onPointerDown={board.onPointerDown}
         onPointerMove={board.onPointerMove}
         onPointerUp={board.endPointer}
