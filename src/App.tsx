@@ -23,7 +23,7 @@ function App() {
     onFirstInk: host.markFirstInk,
     problemKey: exerciseKey,
   })
-  const { status, statusText, isSubmitting, isBoardLocked, handleSubmit, handleReturnToHost } = useSubmitHandwriting({
+  const { status, statusText, isSubmitting, isBoardLocked, handleSubmit, handleReturnToHost, beginNewAttempt } = useSubmitHandwriting({
     strokesRef: board.strokesRef,
     exportBlob: board.exportBlob,
     beforeSubmit: board.cancelInput,
@@ -32,7 +32,10 @@ function App() {
     problemKey: exerciseKey,
     onReturnToChat: host.markCollapsed,
   })
-  const expand = () => void requestFullscreen()
+  const expand = () => {
+    beginNewAttempt()
+    void requestFullscreen()
+  }
 
   const sendReport = async () => {
     if (!host.launchError) return
@@ -63,7 +66,7 @@ function App() {
       {!writingReady && <>
         <FullscreenGate
           compact
-          sent={status === 'submitted' || status === 'closing'}
+          sent={status === 'submitted'}
           onExpand={expand}
         />
         <DebugPanel

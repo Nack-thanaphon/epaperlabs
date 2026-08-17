@@ -145,17 +145,19 @@ export function useSubmitHandwriting({ strokesRef, exportBlob, beforeSubmit, onD
     setStatus('idle')
   }, [problemKey])
 
+  const beginNewAttempt = useCallback(() => {
+    controllerRef.current?.reset()
+    setFailureText('')
+    setStatus('idle')
+  }, [])
+
   const handleReturnToHost = useCallback(async () => {
     const controller = controllerRef.current!
     if (!controller.hasSubmitted()) return
     onReturnToChat?.()
-    try {
-      await controller.returnToHost()
-    } catch (error) {
-      console.error('Papa return-to-host failed', error)
-      setStatus('failed')
-    }
-  }, [onReturnToChat])
+    void returnToInlineMode()
+    beginNewAttempt()
+  }, [beginNewAttempt, onReturnToChat])
 
   return {
     status,
@@ -164,5 +166,6 @@ export function useSubmitHandwriting({ strokesRef, exportBlob, beforeSubmit, onD
     isBoardLocked: ACTIVE_STATUSES.has(status),
     handleSubmit,
     handleReturnToHost,
+    beginNewAttempt,
   }
 }

@@ -8,9 +8,7 @@ export function FullscreenGate({ onExpand, compact = false, sent = false }: Full
   return (
     <div className={`fullscreenGate ${compact ? 'compactGate' : ''}`}>
       {sent && <p className="sentHint">ส่งแล้ว — ดูคำตอบในแชต</p>}
-      <button className="openWritingButton" onClick={onExpand}>
-        {sent ? 'ตอบข้อถัดไป' : 'ตอบคำถาม'}
-      </button>
+      <button className="openWritingButton" onClick={onExpand}>ตอบคำถาม</button>
     </div>
   )
 }

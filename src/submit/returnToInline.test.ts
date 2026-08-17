@@ -21,4 +21,14 @@ describe('returnToInlineMode', () => {
     expect(requestDisplayMode).toHaveBeenCalledWith({ mode: 'inline' })
     expect(requestClose).not.toHaveBeenCalled()
   })
+
+  it('does not hang when the host never resolves inline mode', async () => {
+    window.openai = {
+      requestDisplayMode: () => new Promise(() => {}),
+      displayMode: 'fullscreen',
+    }
+    const started = Date.now()
+    await returnToInlineMode()
+    expect(Date.now() - started).toBeLessThan(2_000)
+  })
 })

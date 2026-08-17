@@ -1,5 +1,4 @@
-const INLINE_WAIT_MS = 2_500
-const INLINE_POLL_MS = 50
+const INLINE_WAIT_MS = 800
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms))
@@ -9,15 +8,16 @@ function sleep(ms: number) {
 export async function returnToInlineMode() {
   const bridge = window.openai
   if (bridge?.requestDisplayMode) {
-    await bridge.requestDisplayMode({ mode: 'inline' })
-    const deadline = Date.now() + INLINE_WAIT_MS
-    while (Date.now() < deadline) {
-      if (bridge.displayMode !== 'fullscreen') return
-      await sleep(INLINE_POLL_MS)
-    }
+    await Promise.race([
+      bridge.requestDisplayMode({ mode: 'inline' }),
+      sleep(INLINE_WAIT_MS),
+    ])
     return
   }
   if (document.fullscreenElement) {
-    await document.exitFullscreen?.()
+    await Promise.race([
+      document.exitFullscreen?.() ?? Promise.resolve(),
+      sleep(INLINE_WAIT_MS),
+    ])
   }
 }

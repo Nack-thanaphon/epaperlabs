@@ -199,6 +199,8 @@ export function createSubmitController(deps: SubmitControllerDependencies): Subm
     reset: () => {
       if (inFlight) return
       attempt = null
+      returnToHostAvailable = false
+      returnPromise = undefined
       deps.onStage('idle')
     },
   }
