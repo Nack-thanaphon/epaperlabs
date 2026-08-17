@@ -30,7 +30,7 @@ test('POST /api/incident accepts a diagnostic snapshot and echoes the incident i
     code: 'E04',
     events: [],
     metrics: { canvasReadyMs: 286, fullscreenActivationMs: null, firstInkLatencyMs: null },
-    context: { buildVersion: 'papa-v9-diagnostics', displayMode: 'inline', bridgeReady: true },
+    context: { buildVersion: 'papa-v10-single-tool', displayMode: 'inline', bridgeReady: true },
   })
 
   assert.equal(response.status, 200)
