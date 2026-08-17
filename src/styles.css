@@ -82,6 +82,15 @@ button {
   overscroll-behavior: none;
 }
 
+.boardParked {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .problemPanel {
   position: relative;
   z-index: 8;

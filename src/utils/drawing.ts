@@ -1,5 +1,5 @@
 import getStroke from 'perfect-freehand'
-import { EXPORT_SCALE, GRID_STEP, PAPER_HEIGHT, PAPER_WIDTH } from '../constants'
+import { EXPORT_MAX_EDGE, EXPORT_PADDING, EXPORT_SCALE, GRID_STEP, PAPER_HEIGHT, PAPER_WIDTH } from '../constants'
 import type { Point, Stroke, Viewport } from '../types'
 
 export function uid() {
@@ -135,17 +135,56 @@ export function redrawPaper(canvas: HTMLCanvasElement, viewport: Viewport, strok
   for (const stroke of strokes) drawStrokePath(ctx, stroke)
 }
 
+export function contentBounds(strokes: Stroke[], padding = EXPORT_PADDING) {
+  let minX = Infinity
+  let minY = Infinity
+  let maxX = -Infinity
+  let maxY = -Infinity
+  for (const stroke of strokes) {
+    for (const point of stroke.points) {
+      const radius = stroke.size / 2
+      minX = Math.min(minX, point.x - radius)
+      minY = Math.min(minY, point.y - radius)
+      maxX = Math.max(maxX, point.x + radius)
+      maxY = Math.max(maxY, point.y + radius)
+    }
+  }
+  if (!Number.isFinite(minX)) {
+    return { x: 0, y: 0, width: PAPER_WIDTH, height: PAPER_HEIGHT }
+  }
+  const x = Math.max(0, Math.floor(minX - padding))
+  const y = Math.max(0, Math.floor(minY - padding))
+  const right = Math.min(PAPER_WIDTH, Math.ceil(maxX + padding))
+  const bottom = Math.min(PAPER_HEIGHT, Math.ceil(maxY + padding))
+  return { x, y, width: Math.max(1, right - x), height: Math.max(1, bottom - y) }
+}
+
+export function exportFrame(strokes: Stroke[], maxEdge = EXPORT_MAX_EDGE) {
+  const bounds = contentBounds(strokes)
+  const longest = Math.max(bounds.width, bounds.height)
+  const scale = Math.min(EXPORT_SCALE, maxEdge / longest)
+  return {
+    ...bounds,
+    scale,
+    outputWidth: Math.max(1, Math.round(bounds.width * scale)),
+    outputHeight: Math.max(1, Math.round(bounds.height * scale)),
+  }
+}
+
 export async function exportPaperBlob(strokes: Stroke[]) {
+  const frame = exportFrame(strokes)
   const exportCanvas = document.createElement('canvas')
-  const scale = EXPORT_SCALE
-  exportCanvas.width = PAPER_WIDTH * scale
-  exportCanvas.height = PAPER_HEIGHT * scale
+  exportCanvas.width = frame.outputWidth
+  exportCanvas.height = frame.outputHeight
   const ctx = exportCanvas.getContext('2d')
   if (!ctx) throw new Error('No canvas context')
   ctx.fillStyle = '#ffffff'
   ctx.fillRect(0, 0, exportCanvas.width, exportCanvas.height)
-  ctx.scale(scale, scale)
+  ctx.setTransform(frame.scale, 0, 0, frame.scale, -frame.x * frame.scale, -frame.y * frame.scale)
   drawPaperGrid(ctx)
+  ctx.strokeStyle = '#e5e7eb'
+  ctx.lineWidth = 2
+  ctx.strokeRect(0, 0, PAPER_WIDTH, PAPER_HEIGHT)
   for (const stroke of strokes) drawStrokePath(ctx, stroke)
   return new Promise<Blob>((resolve, reject) => {
     exportCanvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error('PNG export failed')), 'image/png')

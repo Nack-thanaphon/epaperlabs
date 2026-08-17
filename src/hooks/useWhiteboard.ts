@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState, type PointerEvent, type TouchEvent, type WheelEvent } from 'react'
-import { COLORS, MAX_SCALE, MIN_SCALE, SIZES } from '../constants'
+import { COLORS, DRAFT_PERSIST_MS, MAX_SCALE, MIN_SCALE, SIZES } from '../constants'
 import { BoardHistory, cloneStrokes } from '../history/boardHistory'
 import { PointerSession, type SessionPointer } from '../input/pointerSession'
+import { BLANK_PROBLEM_KEY, clearHostDraft, readHostDraft, writeHostDraft } from '../persistence/widgetDraft'
 import type { Stroke, Tool, Viewport } from '../types'
 import { distance, exportPaperBlob, midpoint, redrawPaper, screenToPaper, uid } from '../utils/drawing'
 
@@ -10,6 +11,7 @@ export function useWhiteboard(
   options?: {
     onCanvasReady?: () => void
     onFirstInk?: () => void
+    problemKey?: string
   }
 ) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
@@ -18,6 +20,15 @@ export function useWhiteboard(
   const gestureBeforeRef = useRef<Stroke[] | null>(null)
   const pointerSession = useRef(new PointerSession())
   const activeStrokeId = useRef<string | null>(null)
+  const rafRef = useRef<number | null>(null)
+  const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const problemKey = options?.problemKey ?? BLANK_PROBLEM_KEY
+  const problemKeyRef = useRef(problemKey)
+  problemKeyRef.current = problemKey
+  const onCanvasReadyRef = useRef(options?.onCanvasReady)
+  const onFirstInkRef = useRef(options?.onFirstInk)
+  onCanvasReadyRef.current = options?.onCanvasReady
+  onFirstInkRef.current = options?.onFirstInk
   const pinchStart = useRef<{
     distance: number
     midpoint: { x: number; y: number }
@@ -38,60 +49,100 @@ export function useWhiteboard(
     })
   }, [])
 
+  const bumpRevision = useCallback(() => {
+    if (rafRef.current != null) return
+    rafRef.current = requestAnimationFrame(() => {
+      rafRef.current = null
+      setRevision((r) => r + 1)
+    })
+  }, [])
+
   const redraw = useCallback((nextViewport = viewport) => {
     const canvas = canvasRef.current
     if (!canvas) return
     redrawPaper(canvas, nextViewport, strokesRef.current)
-    options?.onCanvasReady?.()
-  }, [viewport, options])
+    onCanvasReadyRef.current?.()
+  }, [viewport])
 
   useEffect(() => {
     redraw()
-  }, [redraw, revision, viewport])
+  }, [redraw, revision, viewport, writingReady])
 
   useEffect(() => {
+    const canvas = canvasRef.current
     const onResize = () => redraw()
     window.addEventListener('resize', onResize)
-    return () => window.removeEventListener('resize', onResize)
-  }, [redraw])
-
-  const resetPointerState = useCallback(() => {
-    if (gestureBeforeRef.current) {
-      strokesRef.current = cloneStrokes(gestureBeforeRef.current)
-      gestureBeforeRef.current = null
-      setRevision((r) => r + 1)
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(onResize)
+    if (canvas && observer) observer.observe(canvas)
+    return () => {
+      window.removeEventListener('resize', onResize)
+      observer?.disconnect()
     }
+  }, [redraw, writingReady])
+
+  useEffect(() => {
+    const restored = readHostDraft(problemKey)
+    if (restored?.length) {
+      strokesRef.current = restored
+    } else {
+      strokesRef.current = []
+      historyRef.current.reset()
+      syncHistoryState()
+    }
+    pointerSession.current.reset()
+    activeStrokeId.current = null
+    pinchStart.current = null
+    gestureBeforeRef.current = null
+    setRevision((r) => r + 1)
+  }, [problemKey, syncHistoryState])
+
+  useEffect(() => {
+    if (revision === 0) return
+    if (persistTimerRef.current) clearTimeout(persistTimerRef.current)
+    persistTimerRef.current = setTimeout(() => {
+      void writeHostDraft(strokesRef.current, problemKeyRef.current)
+    }, DRAFT_PERSIST_MS)
+    return () => {
+      if (persistTimerRef.current) clearTimeout(persistTimerRef.current)
+    }
+  }, [revision])
+
+  const resetSession = useCallback(() => {
     pointerSession.current.reset()
     activeStrokeId.current = null
     pinchStart.current = null
   }, [])
 
+  const cancelInput = useCallback(() => {
+    if (gestureBeforeRef.current) {
+      strokesRef.current = cloneStrokes(gestureBeforeRef.current)
+      gestureBeforeRef.current = null
+      bumpRevision()
+    }
+    resetSession()
+  }, [bumpRevision, resetSession])
+
+  const commitOpenStroke = useCallback(() => {
+    if (gestureBeforeRef.current) {
+      historyRef.current.commit(gestureBeforeRef.current, strokesRef.current)
+      syncHistoryState()
+      gestureBeforeRef.current = null
+    }
+    resetSession()
+  }, [resetSession, syncHistoryState])
+
   useEffect(() => {
     const onVisibilityLoss = () => {
-      if (document.visibilityState === 'hidden') resetPointerState()
+      if (document.visibilityState === 'hidden') commitOpenStroke()
     }
-    window.addEventListener('blur', resetPointerState)
+    window.addEventListener('blur', commitOpenStroke)
     document.addEventListener('visibilitychange', onVisibilityLoss)
-    if (!writingReady) resetPointerState()
+    if (!writingReady) resetSession()
     return () => {
-      window.removeEventListener('blur', resetPointerState)
+      window.removeEventListener('blur', commitOpenStroke)
       document.removeEventListener('visibilitychange', onVisibilityLoss)
     }
-  }, [resetPointerState, writingReady])
-
-  const setZoom = useCallback((nextScale: number) => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const rect = canvas.getBoundingClientRect()
-    const centerX = rect.width / 2
-    const centerY = rect.height / 2
-    setViewport((current) => {
-      const scale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, nextScale))
-      const paperX = (centerX - current.x) / current.scale
-      const paperY = (centerY - current.y) / current.scale
-      return { scale, x: centerX - paperX * scale, y: centerY - paperY * scale }
-    })
-  }, [])
+  }, [commitOpenStroke, resetSession, writingReady])
 
   const eraseAt = useCallback((point: { x: number; y: number }) => {
     const before = strokesRef.current.length
@@ -99,10 +150,8 @@ export function useWhiteboard(
     strokesRef.current = strokesRef.current.filter((stroke) =>
       !stroke.points.some((p) => Math.hypot(p.x - point.x, p.y - point.y) <= radius)
     )
-    if (strokesRef.current.length !== before) {
-      setRevision((r) => r + 1)
-    }
-  }, [size])
+    if (strokesRef.current.length !== before) bumpRevision()
+  }, [bumpRevision, size])
 
   const eventPointer = useCallback((canvas: HTMLCanvasElement, event: PointerEvent<HTMLCanvasElement>): SessionPointer => {
     const rect = canvas.getBoundingClientRect()
@@ -124,10 +173,10 @@ export function useWhiteboard(
     if (gestureBeforeRef.current) {
       strokesRef.current = cloneStrokes(gestureBeforeRef.current)
       gestureBeforeRef.current = null
-      setRevision((r) => r + 1)
+      bumpRevision()
     }
     activeStrokeId.current = null
-  }, [])
+  }, [bumpRevision])
 
   const onPointerDown = useCallback((event: PointerEvent<HTMLCanvasElement>) => {
     if (!writingReady) return
@@ -147,6 +196,7 @@ export function useWhiteboard(
       beginPinch(action.pointers)
       return
     }
+    if (action.kind === 'startPan') return
     if (action.kind !== 'startDrawing') return
 
     if (tool !== 'pan') gestureBeforeRef.current = cloneStrokes(strokesRef.current)
@@ -163,9 +213,9 @@ export function useWhiteboard(
     const stroke: Stroke = { id: uid(), points: [point], color, size }
     strokesRef.current = [...strokesRef.current, stroke]
     activeStrokeId.current = stroke.id
-    options?.onFirstInk?.()
-    setRevision((r) => r + 1)
-  }, [beginPinch, cancelTouchStroke, color, eraseAt, eventPointer, options, size, tool, viewport, writingReady])
+    onFirstInkRef.current?.()
+    bumpRevision()
+  }, [beginPinch, bumpRevision, cancelTouchStroke, color, eraseAt, eventPointer, size, tool, viewport, writingReady])
 
   const onPointerMove = useCallback((event: PointerEvent<HTMLCanvasElement>) => {
     if (!writingReady) return
@@ -190,27 +240,29 @@ export function useWhiteboard(
       })
       return
     }
-    if (action.kind !== 'draw') return
-
-    const point = screenToPaper(canvas, viewport, event.clientX, event.clientY)
-    point.pressure = event.pressure && event.pressure > 0 ? event.pressure : 0.55
-
-    if (tool === 'eraser') {
-      eraseAt(point)
-      return
-    }
-    if (tool === 'pan') {
+    if (action.kind === 'pan' || (action.kind === 'draw' && tool === 'pan')) {
       setViewport((current) => ({ ...current, x: current.x + event.movementX, y: current.y + event.movementY }))
       return
     }
+    if (action.kind !== 'draw') return
 
     const id = activeStrokeId.current
     if (!id) return
     const last = strokesRef.current.at(-1)
     if (!last || last.id !== id) return
-    last.points.push(point)
-    setRevision((r) => r + 1)
-  }, [eraseAt, eventPointer, tool, viewport, writingReady])
+
+    const nativeEvents = event.nativeEvent?.getCoalescedEvents?.() ?? [event.nativeEvent ?? event]
+    for (const native of nativeEvents) {
+      const point = screenToPaper(canvas, viewport, native.clientX, native.clientY)
+      point.pressure = native.pressure && native.pressure > 0 ? native.pressure : 0.55
+      if (tool === 'eraser') {
+        eraseAt(point)
+      } else {
+        last.points.push(point)
+      }
+    }
+    if (tool !== 'eraser') bumpRevision()
+  }, [bumpRevision, eraseAt, eventPointer, tool, viewport, writingReady])
 
   const finishPointer = useCallback((event: PointerEvent<HTMLCanvasElement>, cancelled: boolean) => {
     event.preventDefault()
@@ -227,7 +279,7 @@ export function useWhiteboard(
       if (cancelled) {
         if (gestureBeforeRef.current) {
           strokesRef.current = cloneStrokes(gestureBeforeRef.current)
-          setRevision((r) => r + 1)
+          bumpRevision()
         }
       } else if (gestureBeforeRef.current) {
         historyRef.current.commit(gestureBeforeRef.current, strokesRef.current)
@@ -238,7 +290,7 @@ export function useWhiteboard(
     }
     pinchStart.current = null
     if (action.startGesture) beginPinch(action.startGesture)
-  }, [beginPinch, syncHistoryState])
+  }, [beginPinch, bumpRevision, syncHistoryState])
 
   const endPointer = useCallback((event: PointerEvent<HTMLCanvasElement>) => {
     finishPointer(event, false)
@@ -258,16 +310,16 @@ export function useWhiteboard(
     if (!previous) return
     strokesRef.current = previous
     syncHistoryState()
-    setRevision((r) => r + 1)
-  }, [syncHistoryState])
+    bumpRevision()
+  }, [bumpRevision, syncHistoryState])
 
   const redo = useCallback(() => {
     const next = historyRef.current.redo(strokesRef.current)
     if (!next) return
     strokesRef.current = next
     syncHistoryState()
-    setRevision((r) => r + 1)
-  }, [syncHistoryState])
+    bumpRevision()
+  }, [bumpRevision, syncHistoryState])
 
   const clearBoard = useCallback(() => {
     if (strokesRef.current.length === 0) return
@@ -275,14 +327,16 @@ export function useWhiteboard(
     strokesRef.current = []
     historyRef.current.commit(before, strokesRef.current)
     syncHistoryState()
-    setRevision((r) => r + 1)
-  }, [syncHistoryState])
+    bumpRevision()
+    void clearHostDraft()
+  }, [bumpRevision, syncHistoryState])
 
   const exportBlob = useCallback(() => exportPaperBlob(strokesRef.current), [])
 
   return {
     canvasRef,
     strokesRef,
+    revision,
     tool,
     setTool,
     color,
@@ -290,12 +344,11 @@ export function useWhiteboard(
     size,
     setSize,
     viewport,
-    setZoom,
     onPointerDown,
     onPointerMove,
     endPointer,
     cancelPointer,
-    cancelInput: resetPointerState,
+    cancelInput,
     blockCanvasGesture,
     undo,
     redo,

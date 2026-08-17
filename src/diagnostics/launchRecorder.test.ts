@@ -104,25 +104,17 @@ describe('createLaunchRecorder', () => {
     expect(recorder.snapshot().code).toBe('E07')
   })
 
-  it('inline-mode idle board is NOT an error (E03 regression)', () => {
-    // Widget mounted, bridge ready, but user never tapped "เปิดเต็มจอ":
-    // the UI hook only derives E03 after fullscreen was requested. The pure
-    // recorder must not force E03 merely because canvas_ready is missing
-    // while fullscreen was never requested.
+  it('reset clears forced codes so retry can succeed', () => {
     const recorder = createLaunchRecorder()
+    recorder.fail('E04', 'timeout')
+    expect(recorder.snapshot().code).toBe('E04')
+    recorder.reset()
     recorder.record('javascript_started')
-    recorder.record('react_mounted')
     recorder.record('openai_bridge_ready')
-    // no fullscreen_requested, no canvas_ready — inline launcher state
-    // deriveCode returns E03 only as a fallback after fullscreen_requested.
-    // The UI arms the E03 watchdog only when fullscreenRequested === true,
-    // so this state must stay code-less unless forced.
-    const snapshot = recorder.snapshot()
-    // Without fullscreen_requested, canvas_missing is expected in inline mode.
-    // The recorder cannot know UI context; assert the watchdog gating logic
-    // lives in the hook: here we only assert no forced code was set.
-    expect(snapshot.code === 'E03' || snapshot.code === null).toBe(true)
-    expect(recorder.snapshot().context.bridgeReady ?? true)
+    recorder.record('canvas_ready')
+    recorder.record('fullscreen_requested')
+    recorder.record('fullscreen_confirmed')
+    expect(recorder.snapshot().code).toBeNull()
   })
 })
 

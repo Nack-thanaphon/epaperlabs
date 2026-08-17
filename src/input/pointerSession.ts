@@ -8,6 +8,8 @@ export interface SessionPointer {
 type PointerAction =
   | { kind: 'startDrawing'; pointer: SessionPointer }
   | { kind: 'draw'; pointer: SessionPointer }
+  | { kind: 'startPan'; pointer: SessionPointer }
+  | { kind: 'pan'; pointer: SessionPointer }
   | { kind: 'startGesture'; pointers: [SessionPointer, SessionPointer]; cancelledDrawingId: number | null }
   | { kind: 'gesture'; pointers: [SessionPointer, SessionPointer] }
   | { kind: 'ignore' }
@@ -43,13 +45,12 @@ export class PointerSession {
     }
 
     if (pointer.pointerType === 'touch' && this.ownerType === 'pen') {
-      // Palm/finger input must never steal or terminate an Apple Pencil stroke.
       return { kind: 'ignore' }
     }
 
     const touches = this.touchPointers()
     if (touches.length >= 2 && this.ownerType !== 'pen') {
-      const cancelledDrawingId = this.ownerType === 'touch' ? this.ownerId : null
+      const cancelledDrawingId = this.ownerType === 'touch' ? null : this.ownerId
       this.ownerId = null
       this.ownerType = null
       this.inGesture = true
@@ -63,7 +64,9 @@ export class PointerSession {
     if (this.ownerId !== null) return { kind: 'ignore' }
     this.ownerId = pointer.id
     this.ownerType = pointer.pointerType
-    return { kind: 'startDrawing', pointer }
+    return pointer.pointerType === 'touch'
+      ? { kind: 'startPan', pointer }
+      : { kind: 'startDrawing', pointer }
   }
 
   move(pointer: SessionPointer): PointerAction {
@@ -77,14 +80,15 @@ export class PointerSession {
         : { kind: 'ignore' }
     }
 
-    return pointer.id === this.ownerId
-      ? { kind: 'draw', pointer }
-      : { kind: 'ignore' }
+    if (pointer.id !== this.ownerId) return { kind: 'ignore' }
+    return this.ownerType === 'touch'
+      ? { kind: 'pan', pointer }
+      : { kind: 'draw', pointer }
   }
 
   up(pointerId: number): PointerEndAction {
-    const endedDrawing = pointerId === this.ownerId
-    if (endedDrawing) {
+    const endedDrawing = pointerId === this.ownerId && this.ownerType !== 'touch'
+    if (pointerId === this.ownerId) {
       this.ownerId = null
       this.ownerType = null
     }
@@ -99,8 +103,6 @@ export class PointerSession {
       return { endedDrawing, startGesture: null }
     }
 
-    // If Pencil ended while two already-resting fingers remain, begin their
-    // gesture without requiring the user to lift and place them again.
     const touches = this.touchPointers()
     if (touches.length >= 2 && this.ownerId === null) {
       this.inGesture = true

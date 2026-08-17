@@ -44,8 +44,8 @@ export interface DiagnosticSnapshot {
   }
 }
 
-const BUILD_VERSION = 'papa-v10-single-tool'
-const RESOURCE_URI = 'ui://papa/papa-v10-single-tool.html'
+const BUILD_VERSION = 'papa-v11-stay-open'
+const RESOURCE_URI = 'ui://papa/papa-v11-stay-open.html'
 
 function now(): number {
   return Math.round(
@@ -155,6 +155,12 @@ export function createLaunchRecorder() {
     getIncidentId,
     snapshot,
     has: (name: TimelineEventName) => seen.has(name),
+    reset: () => {
+      events.length = 0
+      seen.clear()
+      incidentId = null
+      forcedCode = null
+    },
     get buildVersion() {
       return BUILD_VERSION
     },

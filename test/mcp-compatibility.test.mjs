@@ -6,25 +6,24 @@ import {
   BOARD_TOOL_ALIASES,
 } from '../lib/mcp-app.mjs'
 
-// 2026-08-17: owner retired the compatibility window. The accumulated
-// aliases (paper / open_epaper / open_epaper_lite) and 22 legacy resource
-// URIs made ChatGPT's connector cache serve stale metadata, producing
-// "Board ready" tool cards with no widget. The contract is now: exactly ONE
-// tool and ONE resource, version-bumped so caches must refetch.
-describe('MCP single-tool contract', () => {
-  test('publishes exactly one versioned resource URI', () => {
-    assert.equal(RESOURCE_URI, 'ui://papa/papa-v10-single-tool.html')
+describe('MCP compatibility window', () => {
+  test('publishes a current versioned resource URI', () => {
+    assert.equal(RESOURCE_URI, 'ui://papa/papa-v11-stay-open.html')
   })
 
-  test('retires every legacy resource URI', () => {
-    assert.equal(LEGACY_RESOURCE_URIS.length, 0)
+  test('keeps legacy resource URIs that all point at the live widget', () => {
+    assert.ok(LEGACY_RESOURCE_URIS.length >= 20)
+    assert.equal(new Set(LEGACY_RESOURCE_URIS).size, LEGACY_RESOURCE_URIS.length)
+    assert.ok(!LEGACY_RESOURCE_URIS.includes(RESOURCE_URI))
   })
 
-  test('publishes exactly one tool named papa', () => {
+  test('keeps papa plus cached tool aliases', () => {
     assert.deepEqual(
       BOARD_TOOL_ALIASES.map(({ name }) => name),
-      ['papa']
+      ['papa', 'paper', 'open_epaper', 'open_epaper_lite']
     )
-    assert.equal(BOARD_TOOL_ALIASES[0].resourceUri, RESOURCE_URI)
+    for (const alias of BOARD_TOOL_ALIASES) {
+      assert.equal(alias.resourceUri, RESOURCE_URI)
+    }
   })
 })

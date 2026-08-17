@@ -17,16 +17,20 @@ const INCIDENT_ENDPOINT =
 
 function App() {
   const host = useOpenAiHost()
-  const { problem, writingReady, safeArea, requestFullscreen } = host
+  const { problem, writingReady, safeArea, requestFullscreen, exerciseKey } = host
   const board = useWhiteboard(writingReady, {
     onCanvasReady: host.markCanvasReady,
     onFirstInk: host.markFirstInk,
+    problemKey: exerciseKey,
   })
-  const { status, statusText, isSubmitting, isBoardLocked, handleSubmit } = useSubmitHandwriting({
+  const { status, statusText, isSubmitting, isBoardLocked, handleSubmit, handleReturnToHost } = useSubmitHandwriting({
     strokesRef: board.strokesRef,
     exportBlob: board.exportBlob,
     beforeSubmit: board.cancelInput,
     onDiagnosticFailure: host.reportSubmitFailure,
+    strokeRevision: board.revision,
+    problemKey: exerciseKey,
+    onReturnToChat: host.markCollapsed,
   })
   const expand = () => void requestFullscreen()
 
@@ -56,7 +60,7 @@ function App() {
         '--host-safe-left': `${safeArea.left}px`,
       } as CSSProperties}
     >
-      {!writingReady ? <>
+      {!writingReady && <>
         <FullscreenGate compact onExpand={expand} />
         <DebugPanel
           error={host.launchError}
@@ -64,7 +68,8 @@ function App() {
           onSendReport={sendReport}
           reportState={host.reportState}
         />
-      </> : <>
+      </>}
+      {writingReady && <>
       <div className="bottomControls">
         <FloatingTools
           tool={board.tool}
@@ -85,22 +90,23 @@ function App() {
           onRedo={board.redo}
           onClear={board.clearBoard}
           onSubmit={handleSubmit}
+          onReturnToHost={handleReturnToHost}
         />
       </div>
       <ProblemPanel problem={problem} />
+      </>}
       <DrawingBoard
         canvasRef={board.canvasRef}
         tool={board.tool}
         writingReady={writingReady}
         inputLocked={isBoardLocked}
+        parked={!writingReady}
         onPointerDown={board.onPointerDown}
         onPointerMove={board.onPointerMove}
         onPointerUp={board.endPointer}
         onPointerCancel={board.cancelPointer}
         onGestureBlock={board.blockCanvasGesture}
-        onExpand={expand}
       />
-      </>}
     </div>
   )
 }

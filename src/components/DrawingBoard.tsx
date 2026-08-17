@@ -1,18 +1,17 @@
 import type { PointerEvent, RefObject, TouchEvent, WheelEvent } from 'react'
 import type { Tool } from '../types'
-import { FullscreenGate } from './FullscreenGate'
 
 interface DrawingBoardProps {
   canvasRef: RefObject<HTMLCanvasElement | null>
   tool: Tool
   writingReady: boolean
   inputLocked: boolean
+  parked?: boolean
   onPointerDown: (event: PointerEvent<HTMLCanvasElement>) => void
   onPointerMove: (event: PointerEvent<HTMLCanvasElement>) => void
   onPointerUp: (event: PointerEvent<HTMLCanvasElement>) => void
   onPointerCancel: (event: PointerEvent<HTMLCanvasElement>) => void
   onGestureBlock: (event: TouchEvent<HTMLCanvasElement> | WheelEvent<HTMLCanvasElement>) => void
-  onExpand: () => void
 }
 
 export function DrawingBoard({
@@ -20,15 +19,15 @@ export function DrawingBoard({
   tool,
   writingReady,
   inputLocked,
+  parked = false,
   onPointerDown,
   onPointerMove,
   onPointerUp,
   onPointerCancel,
   onGestureBlock,
-  onExpand,
 }: DrawingBoardProps) {
   return (
-    <div className="boardWrap">
+    <div className={`boardWrap ${parked ? 'boardParked' : ''}`}>
       <canvas
         ref={canvasRef}
         className={`paperCanvas tool-${tool} ${writingReady && !inputLocked ? '' : 'locked'}`}
@@ -42,7 +41,6 @@ export function DrawingBoard({
         onTouchEnd={onGestureBlock}
         onWheel={onGestureBlock}
       />
-      {!writingReady && <FullscreenGate onExpand={onExpand} />}
     </div>
   )
 }

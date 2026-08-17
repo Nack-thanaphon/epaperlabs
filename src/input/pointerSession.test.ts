@@ -14,15 +14,16 @@ describe('PointerSession', () => {
     expect(session.drawingPointerId).toBe(1)
   })
 
-  it('cancels a pending touch stroke when the second finger arrives', () => {
+  it('uses one finger to pan and never starts a touch stroke', () => {
     const session = new PointerSession()
-    expect(session.down(point(10, 'touch')).kind).toBe('startDrawing')
+    expect(session.down(point(10, 'touch')).kind).toBe('startPan')
+    expect(session.move(point(10, 'touch', 5, 0)).kind).toBe('pan')
     const second = session.down(point(11, 'touch', 20, 0))
     expect(second.kind).toBe('startGesture')
     if (second.kind !== 'startGesture') throw new Error('expected startGesture')
-    expect(second.cancelledDrawingId).toBe(10)
+    expect(second.cancelledDrawingId).toBeNull()
     expect(session.drawingPointerId).toBeNull()
-    expect(session.move(point(10, 'touch', 5, 0)).kind).toBe('gesture')
+    expect(session.move(point(10, 'touch', 8, 0)).kind).toBe('gesture')
   })
 
   it('does not resume drawing when one finger remains after a gesture', () => {

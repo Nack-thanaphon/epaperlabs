@@ -24,6 +24,11 @@ declare global {
   interface Window {
     openai?: {
       uploadFile?: (file: File, options?: { library?: boolean }) => Promise<{ fileId: string }>
+      widgetState?: {
+        modelContent?: string
+        privateContent?: unknown
+        imageIds?: string[]
+      }
       setWidgetState?: (state: {
         modelContent?: string
         privateContent?: unknown

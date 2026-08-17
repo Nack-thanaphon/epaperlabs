@@ -1,6 +1,7 @@
-import { useCallback, useMemo, useRef, useState, type RefObject } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import { PAPER_HEIGHT, PAPER_WIDTH, STATUS_TEXT } from '../constants'
 import { createSubmitController, type SubmitController, type SubmitStageError } from '../submit/submitMachine'
+import { clearHostDraft } from '../persistence/widgetDraft'
 import type { Stroke, SubmitStatus } from '../types'
 
 interface UseSubmitHandwritingOptions {
@@ -8,6 +9,9 @@ interface UseSubmitHandwritingOptions {
   exportBlob: () => Promise<Blob>
   beforeSubmit?: () => void
   onDiagnosticFailure?: (detail: string) => void
+  strokeRevision?: number
+  problemKey?: string
+  onReturnToChat?: () => void
 }
 
 const ACTIVE_STATUSES = new Set<SubmitStatus>([
@@ -27,7 +31,7 @@ function bridgeOrThrow() {
   return bridge
 }
 
-export function useSubmitHandwriting({ strokesRef, exportBlob, beforeSubmit, onDiagnosticFailure }: UseSubmitHandwritingOptions) {
+export function useSubmitHandwriting({ strokesRef, exportBlob, beforeSubmit, onDiagnosticFailure, strokeRevision = 0, problemKey = '', onReturnToChat }: UseSubmitHandwritingOptions) {
   const [status, setStatus] = useState<SubmitStatus>('idle')
   const [failureText, setFailureText] = useState('')
   const statusText = useMemo(
@@ -86,6 +90,7 @@ export function useSubmitHandwriting({ strokesRef, exportBlob, beforeSubmit, onD
       onStage: (stage) => {
         setFailureText('')
         setStatus(stage)
+        if (stage === 'submitted') void clearHostDraft()
       },
       onFailure: (error: SubmitStageError) => {
         const labels: Record<SubmitStageError['stage'], string> = {
@@ -122,11 +127,50 @@ export function useSubmitHandwriting({ strokesRef, exportBlob, beforeSubmit, onD
     }
   }, [beforeSubmit, status, strokesRef])
 
+  const failedAtRevisionRef = useRef<number | null>(null)
+  useEffect(() => {
+    if (status !== 'failed') {
+      failedAtRevisionRef.current = null
+      return
+    }
+    if (failedAtRevisionRef.current === null) {
+      failedAtRevisionRef.current = strokeRevision
+      return
+    }
+    if (strokeRevision === failedAtRevisionRef.current) return
+    controllerRef.current?.reset()
+    setFailureText('')
+    setStatus('idle')
+    failedAtRevisionRef.current = null
+  }, [status, strokeRevision])
+
+  const lastProblemKeyRef = useRef(problemKey)
+  useEffect(() => {
+    if (lastProblemKeyRef.current === problemKey) return
+    lastProblemKeyRef.current = problemKey
+    controllerRef.current?.reset()
+    setFailureText('')
+    setStatus('idle')
+  }, [problemKey])
+
+  const handleReturnToHost = useCallback(async () => {
+    const controller = controllerRef.current!
+    if (!controller.hasSubmitted()) return
+    try {
+      await controller.returnToHost()
+      onReturnToChat?.()
+    } catch (error) {
+      console.error('Papa return-to-host failed', error)
+      setStatus('failed')
+    }
+  }, [onReturnToChat])
+
   return {
     status,
     statusText,
     isSubmitting: ACTIVE_STATUSES.has(status),
-    isBoardLocked: status !== 'idle' && status !== 'empty',
+    isBoardLocked: ACTIVE_STATUSES.has(status),
     handleSubmit,
+    handleReturnToHost,
   }
 }

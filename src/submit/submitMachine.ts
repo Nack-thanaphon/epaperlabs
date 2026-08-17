@@ -48,6 +48,8 @@ export interface SubmitControllerDependencies {
 export interface SubmitController {
   submit: () => Promise<boolean>
   retry: () => Promise<boolean>
+  returnToHost: () => Promise<boolean>
+  hasSubmitted: () => boolean
   isSubmitting: () => boolean
   reset: () => void
 }
@@ -150,13 +152,13 @@ export function createSubmitController(deps: SubmitControllerDependencies): Subm
         )
         attempt.sent = true
       }
-      await runPersistentStage(
-        'closing',
-        () => attempt!.closePromise,
-        (promise) => { attempt!.closePromise = promise },
-        deps.close
-      )
+      // Deliberately DO NOT auto-close here. The board stays open in the
+      // 'submitted' state so the learner can still see their work while the
+      // assistant answers; returning to the chat is an explicit user action
+      // (returnToHost). Auto-closing raced the host and made the submission
+      // feel like it vanished (owner report 2026-08-17).
       deps.onStage('submitted')
+      returnToHostAvailable = true
       attempt = null
       return true
     } finally {
@@ -164,9 +166,35 @@ export function createSubmitController(deps: SubmitControllerDependencies): Subm
     }
   }
 
+  let returnInFlight = false
+  let returnPromise: Promise<void> | undefined
+  let returnToHostAvailable = false
+
+  const returnToHost = async () => {
+    if (!returnToHostAvailable || returnInFlight) return false
+    returnInFlight = true
+    try {
+      returnPromise ??= Promise.resolve().then(deps.close)
+      try {
+        await runStage('closing', () => returnPromise!)
+        returnToHostAvailable = false
+        return true
+      } catch (error) {
+        if (error instanceof SubmitStageError && error.code === 'failed') {
+          returnPromise = undefined
+        }
+        throw error
+      }
+    } finally {
+      returnInFlight = false
+    }
+  }
+
   return {
     submit: run,
     retry: run,
+    returnToHost,
+    hasSubmitted: () => returnToHostAvailable,
     isSubmitting: () => inFlight,
     reset: () => {
       if (inFlight) return
