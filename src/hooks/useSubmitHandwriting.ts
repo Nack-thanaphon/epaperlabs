@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } fro
 import { PAPER_HEIGHT, PAPER_WIDTH, STATUS_TEXT } from '../constants'
 import { createSubmitController, type SubmitController, type SubmitStageError } from '../submit/submitMachine'
 import { clearHostDraft } from '../persistence/widgetDraft'
+import { returnToInlineMode } from '../submit/returnToInline'
 import type { Stroke, SubmitStatus } from '../types'
 
 interface UseSubmitHandwritingOptions {
@@ -76,16 +77,7 @@ export function useSubmitHandwriting({ strokesRef, exportBlob, beforeSubmit, onD
         })
       },
       close: async () => {
-        const bridge = window.openai
-        if (bridge?.requestClose) {
-          await bridge.requestClose()
-          return
-        }
-        if (bridge?.requestDisplayMode) {
-          await bridge.requestDisplayMode({ mode: 'inline' })
-          return
-        }
-        throw new Error('ChatGPT cannot close the board')
+        await returnToInlineMode()
       },
       onStage: (stage) => {
         setFailureText('')
@@ -156,9 +148,9 @@ export function useSubmitHandwriting({ strokesRef, exportBlob, beforeSubmit, onD
   const handleReturnToHost = useCallback(async () => {
     const controller = controllerRef.current!
     if (!controller.hasSubmitted()) return
+    onReturnToChat?.()
     try {
       await controller.returnToHost()
-      onReturnToChat?.()
     } catch (error) {
       console.error('Papa return-to-host failed', error)
       setStatus('failed')

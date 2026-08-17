@@ -21,6 +21,7 @@ export function useOpenAiHost() {
   const [reportState, setReportState] = useState<'idle' | 'sending' | 'sent' | 'failed'>('idle')
   const fullscreenTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const writingExitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const suppressFullscreenRef = useRef(false)
   const dismissedKeysRef = useRef(new Set<string>())
   const autoRequestedKeysRef = useRef(new Set<string>())
 
@@ -40,6 +41,7 @@ export function useOpenAiHost() {
 
   const applyWritingReady = (fullscreen: boolean) => {
     if (fullscreen) {
+      if (suppressFullscreenRef.current) return
       clearWritingExitTimer()
       setWritingReady(true)
       return
@@ -52,6 +54,7 @@ export function useOpenAiHost() {
   }
 
   const requestFullscreen = useCallback(async () => {
+    suppressFullscreenRef.current = false
     setLaunchError(null)
     try {
       if (window.openai?.requestDisplayMode) {
@@ -183,6 +186,9 @@ export function useOpenAiHost() {
 
   const markCollapsed = useCallback(() => {
     dismissedKeysRef.current.add(problemKey(problem))
+    suppressFullscreenRef.current = true
+    clearWritingExitTimer()
+    setWritingReady(false)
   }, [problem])
 
   return {

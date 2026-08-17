@@ -52,10 +52,14 @@ button {
 
 .appShell.inlineMode {
   display: flex;
+  flex-direction: column;
   justify-content: flex-start;
-  align-items: flex-start;
-  padding: 8px 0;
-  background: transparent;
+  align-items: stretch;
+  gap: 8px;
+  min-height: 72px;
+  padding: 12px 10px;
+  background: #f8fafc;
+  color: #111827;
 }
 
 .bottomBar {
@@ -190,6 +194,14 @@ button {
   display: block;
   padding: 0;
   background: transparent;
+}
+
+.sentHint {
+  margin: 0 0 8px;
+  color: #334155;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
 }
 
 .openWritingButton {

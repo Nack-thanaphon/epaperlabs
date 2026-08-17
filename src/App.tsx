@@ -61,7 +61,11 @@ function App() {
       } as CSSProperties}
     >
       {!writingReady && <>
-        <FullscreenGate compact onExpand={expand} />
+        <FullscreenGate
+          compact
+          sent={status === 'submitted' || status === 'closing'}
+          onExpand={expand}
+        />
         <DebugPanel
           error={host.launchError}
           onRetry={host.retryLaunch}
