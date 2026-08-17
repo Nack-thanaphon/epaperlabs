@@ -8,7 +8,6 @@ import {
 import { problemKey } from '../persistence/widgetDraft'
 
 const EMPTY_SAFE_AREA = { top: 0, right: 0, bottom: 0, left: 0 }
-const FULLSCREEN_TIMEOUT_MS = 4_000
 const BOOTSTRAP_TIMEOUT_MS = 3_500
 
 export function useOpenAiHost() {
@@ -19,18 +18,10 @@ export function useOpenAiHost() {
   const [safeArea, setSafeArea] = useState(EMPTY_SAFE_AREA)
   const [launchError, setLaunchError] = useState<DiagnosticSnapshot | null>(null)
   const [reportState, setReportState] = useState<'idle' | 'sending' | 'sent' | 'failed'>('idle')
-  const fullscreenTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const writingExitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const suppressFullscreenRef = useRef(false)
   const dismissedKeysRef = useRef(new Set<string>())
-  const autoRequestedKeysRef = useRef(new Set<string>())
-
-  const clearFullscreenTimer = () => {
-    if (fullscreenTimerRef.current) {
-      clearTimeout(fullscreenTimerRef.current)
-      fullscreenTimerRef.current = null
-    }
-  }
+  const userWantsWritingRef = useRef(false)
 
   const clearWritingExitTimer = () => {
     if (writingExitTimerRef.current) {
@@ -42,10 +33,12 @@ export function useOpenAiHost() {
   const applyWritingReady = (fullscreen: boolean) => {
     if (fullscreen) {
       if (suppressFullscreenRef.current) return
+      userWantsWritingRef.current = true
       clearWritingExitTimer()
       setWritingReady(true)
       return
     }
+    if (userWantsWritingRef.current) return
     if (writingExitTimerRef.current) return
     writingExitTimerRef.current = setTimeout(() => {
       writingExitTimerRef.current = null
@@ -55,41 +48,22 @@ export function useOpenAiHost() {
 
   const requestFullscreen = useCallback(async () => {
     suppressFullscreenRef.current = false
+    userWantsWritingRef.current = true
     setLaunchError(null)
+    setWritingReady(true)
     try {
       if (window.openai?.requestDisplayMode) {
         recorder.record('fullscreen_requested')
-        clearFullscreenTimer()
-        fullscreenTimerRef.current = setTimeout(() => {
-          if (!recorder.has('fullscreen_confirmed')) {
-            recorder.record('fullscreen_failed', `Fullscreen request: timeout after ${FULLSCREEN_TIMEOUT_MS} ms`)
-            recorder.fail('E04', `fullscreen timeout after ${FULLSCREEN_TIMEOUT_MS} ms`)
-            setLaunchError(recorder.snapshot())
-          }
-        }, FULLSCREEN_TIMEOUT_MS)
         await window.openai.requestDisplayMode({ mode: 'fullscreen' })
         if (window.openai.displayMode === 'fullscreen') {
-          clearFullscreenTimer()
           recorder.record('fullscreen_confirmed')
-          setLaunchError(null)
         }
-        applyWritingReady(window.openai.displayMode === 'fullscreen')
         return
       }
       await document.documentElement.requestFullscreen?.()
-      if (document.fullscreenElement) {
-        clearFullscreenTimer()
-        recorder.record('fullscreen_confirmed')
-        setLaunchError(null)
-      }
-      applyWritingReady(Boolean(document.fullscreenElement))
-    } catch (error) {
-      clearFullscreenTimer()
-      clearWritingExitTimer()
-      recorder.record('fullscreen_failed', String((error as Error)?.message ?? error))
-      recorder.fail('E04', String((error as Error)?.message ?? error))
-      setLaunchError(recorder.snapshot())
-      setWritingReady(false)
+      if (document.fullscreenElement) recorder.record('fullscreen_confirmed')
+    } catch {
+      // Host declined fullscreen; keep the writing surface in the card.
     }
   }, [recorder])
 
@@ -103,7 +77,6 @@ export function useOpenAiHost() {
         ? window.openai.displayMode === 'fullscreen'
         : Boolean(document.fullscreenElement)
       if (fullscreen) {
-        clearFullscreenTimer()
         recorder.record('fullscreen_confirmed')
         setLaunchError(null)
       }
@@ -133,20 +106,9 @@ export function useOpenAiHost() {
     return () => {
       window.removeEventListener('openai:set_globals', onHostGlobals)
       document.removeEventListener('fullscreenchange', syncWritingMode)
-      clearFullscreenTimer()
       clearWritingExitTimer()
     }
   }, [recorder])
-
-  useEffect(() => {
-    const key = problemKey(problem)
-    if (writingReady) return
-    if (dismissedKeysRef.current.has(key)) return
-    if (autoRequestedKeysRef.current.has(key)) return
-    if (!window.openai?.requestDisplayMode) return
-    autoRequestedKeysRef.current.add(key)
-    void requestFullscreen()
-  }, [problem, requestFullscreen, writingReady])
 
   useEffect(() => {
     if (!writingReady) return
@@ -180,13 +142,13 @@ export function useOpenAiHost() {
     setLaunchError(null)
     setReportState('idle')
     dismissedKeysRef.current.delete(problemKey(problem))
-    autoRequestedKeysRef.current.delete(problemKey(problem))
     void requestFullscreen()
   }, [problem, recorder, requestFullscreen])
 
   const markCollapsed = useCallback(() => {
     dismissedKeysRef.current.add(problemKey(problem))
     suppressFullscreenRef.current = true
+    userWantsWritingRef.current = false
     clearWritingExitTimer()
     setWritingReady(false)
   }, [problem])
