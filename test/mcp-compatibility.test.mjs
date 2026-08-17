@@ -7,7 +7,7 @@ import {
 
 describe('MCP single-tool contract', () => {
   test('publishes exactly one versioned resource URI', () => {
-    assert.equal(RESOURCE_URI, 'ui://papa/papa-v14-answer.html')
+    assert.equal(RESOURCE_URI, 'ui://papa/papa-v16-board.html')
   })
 
   test('publishes exactly one tool named papa', () => {

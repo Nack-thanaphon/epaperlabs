@@ -3,8 +3,10 @@ import { COLORS, DRAFT_PERSIST_MS, MAX_SCALE, MIN_SCALE, SIZES } from '../consta
 import { BoardHistory, cloneStrokes } from '../history/boardHistory'
 import { PointerSession, type SessionPointer } from '../input/pointerSession'
 import { BLANK_PROBLEM_KEY, clearHostDraft, readHostDraft, writeHostDraft } from '../persistence/widgetDraft'
-import type { Stroke, Tool, Viewport } from '../types'
-import { distance, exportPaperBlob, midpoint, redrawPaper, screenToPaper, uid } from '../utils/drawing'
+import type { Point, Stroke, Tool, Viewport } from '../types'
+import { copyPngBlob } from '../utils/copyImage'
+import { canExportLasso, exportLassoBlob } from '../utils/lasso'
+import { distance, midpoint, redrawPaper, screenToPaper, uid } from '../utils/drawing'
 
 export function useWhiteboard(
   writingReady: boolean,
@@ -20,6 +22,8 @@ export function useWhiteboard(
   const gestureBeforeRef = useRef<Stroke[] | null>(null)
   const pointerSession = useRef(new PointerSession())
   const activeStrokeId = useRef<string | null>(null)
+  const lassoPathRef = useRef<Point[]>([])
+  const lassoHintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const rafRef = useRef<number | null>(null)
   const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const problemKey = options?.problemKey ?? BLANK_PROBLEM_KEY
@@ -41,6 +45,7 @@ export function useWhiteboard(
   const [viewport, setViewport] = useState<Viewport>({ scale: 0.75, x: 32, y: 32 })
   const [revision, setRevision] = useState(0)
   const [historyState, setHistoryState] = useState({ canUndo: false, canRedo: false })
+  const [lassoHint, setLassoHint] = useState('')
 
   const syncHistoryState = useCallback(() => {
     setHistoryState({
@@ -60,7 +65,7 @@ export function useWhiteboard(
   const redraw = useCallback((nextViewport = viewport) => {
     const canvas = canvasRef.current
     if (!canvas) return
-    redrawPaper(canvas, nextViewport, strokesRef.current)
+    redrawPaper(canvas, nextViewport, strokesRef.current, lassoPathRef.current)
     onCanvasReadyRef.current?.()
   }, [viewport])
 
@@ -91,6 +96,7 @@ export function useWhiteboard(
     }
     pointerSession.current.reset()
     activeStrokeId.current = null
+    lassoPathRef.current = []
     pinchStart.current = null
     gestureBeforeRef.current = null
     setRevision((r) => r + 1)
@@ -113,10 +119,37 @@ export function useWhiteboard(
     pinchStart.current = null
   }, [])
 
+  const showLassoHint = useCallback((text: string) => {
+    setLassoHint(text)
+    if (lassoHintTimerRef.current) clearTimeout(lassoHintTimerRef.current)
+    lassoHintTimerRef.current = setTimeout(() => {
+      lassoHintTimerRef.current = null
+      setLassoHint('')
+    }, 1800)
+  }, [])
+
+  const copyLassoImage = useCallback(async (polygon: Point[]) => {
+    if (!canExportLasso(polygon)) {
+      showLassoHint('ลากล้อมพื้นที่ก่อน')
+      return
+    }
+    try {
+      const blob = await exportLassoBlob(strokesRef.current, polygon)
+      const result = await copyPngBlob(blob)
+      showLassoHint(result === 'copied' ? 'คัดลอกรูปแล้ว' : result === 'shared' ? 'แชร์รูปแล้ว' : 'บันทึกรูปแล้ว')
+    } catch {
+      showLassoHint('คัดลอกรูปไม่สำเร็จ')
+    }
+  }, [showLassoHint])
+
   const cancelInput = useCallback(() => {
     if (gestureBeforeRef.current) {
       strokesRef.current = cloneStrokes(gestureBeforeRef.current)
       gestureBeforeRef.current = null
+      bumpRevision()
+    }
+    if (lassoPathRef.current.length) {
+      lassoPathRef.current = []
       bumpRevision()
     }
     resetSession()
@@ -169,13 +202,14 @@ export function useWhiteboard(
   }, [viewport])
 
   const cancelTouchStroke = useCallback((cancelledDrawingId: number | null) => {
-    if (cancelledDrawingId === null) return
+    if (cancelledDrawingId === null && lassoPathRef.current.length === 0) return
     if (gestureBeforeRef.current) {
       strokesRef.current = cloneStrokes(gestureBeforeRef.current)
       gestureBeforeRef.current = null
-      bumpRevision()
     }
+    if (lassoPathRef.current.length) lassoPathRef.current = []
     activeStrokeId.current = null
+    bumpRevision()
   }, [bumpRevision])
 
   const onPointerDown = useCallback((event: PointerEvent<HTMLCanvasElement>) => {
@@ -199,7 +233,7 @@ export function useWhiteboard(
     if (action.kind === 'startPan') return
     if (action.kind !== 'startDrawing') return
 
-    if (tool !== 'pan') gestureBeforeRef.current = cloneStrokes(strokesRef.current)
+    if (tool !== 'pan' && tool !== 'lasso') gestureBeforeRef.current = cloneStrokes(strokesRef.current)
 
     const point = screenToPaper(canvas, viewport, event.clientX, event.clientY)
     point.pressure = event.pressure && event.pressure > 0 ? event.pressure : 0.55
@@ -209,6 +243,11 @@ export function useWhiteboard(
       return
     }
     if (tool === 'pan') return
+    if (tool === 'lasso') {
+      lassoPathRef.current = [point]
+      bumpRevision()
+      return
+    }
 
     const stroke: Stroke = { id: uid(), points: [point], color, size }
     strokesRef.current = [...strokesRef.current, stroke]
@@ -246,6 +285,16 @@ export function useWhiteboard(
     }
     if (action.kind !== 'draw') return
 
+    if (tool === 'lasso') {
+      const point = screenToPaper(canvas, viewport, event.clientX, event.clientY)
+      const last = lassoPathRef.current.at(-1)
+      if (!last || distance(last, point) >= 4) {
+        lassoPathRef.current = [...lassoPathRef.current, point]
+        bumpRevision()
+      }
+      return
+    }
+
     const id = activeStrokeId.current
     if (!id) return
     const last = strokesRef.current.at(-1)
@@ -276,7 +325,12 @@ export function useWhiteboard(
 
     const action = pointerSession.current.up(event.pointerId)
     if (action.endedDrawing) {
-      if (cancelled) {
+      if (tool === 'lasso') {
+        const polygon = lassoPathRef.current
+        lassoPathRef.current = []
+        bumpRevision()
+        if (!cancelled) void copyLassoImage(polygon)
+      } else if (cancelled) {
         if (gestureBeforeRef.current) {
           strokesRef.current = cloneStrokes(gestureBeforeRef.current)
           bumpRevision()
@@ -290,7 +344,7 @@ export function useWhiteboard(
     }
     pinchStart.current = null
     if (action.startGesture) beginPinch(action.startGesture)
-  }, [beginPinch, bumpRevision, syncHistoryState])
+  }, [beginPinch, bumpRevision, copyLassoImage, syncHistoryState, tool])
 
   const endPointer = useCallback((event: PointerEvent<HTMLCanvasElement>) => {
     finishPointer(event, false)
@@ -331,8 +385,6 @@ export function useWhiteboard(
     void clearHostDraft()
   }, [bumpRevision, syncHistoryState])
 
-  const exportBlob = useCallback(() => exportPaperBlob(strokesRef.current), [])
-
   return {
     canvasRef,
     strokesRef,
@@ -355,6 +407,6 @@ export function useWhiteboard(
     canUndo: historyState.canUndo,
     canRedo: historyState.canRedo,
     clearBoard,
-    exportBlob,
+    lassoHint,
   }
 }

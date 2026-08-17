@@ -1,13 +1,4 @@
-export type SubmitStatus =
-  | 'idle'
-  | 'exporting'
-  | 'uploading'
-  | 'attaching'
-  | 'sending'
-  | 'submitted'
-  | 'failed'
-  | 'empty'
-export type Tool = 'pen' | 'eraser' | 'pan'
+export type Tool = 'pen' | 'eraser' | 'pan' | 'lasso'
 export type Point = { x: number; y: number; pressure: number }
 export type Stroke = { id: string; points: Point[]; color: string; size: number }
 export type Viewport = { scale: number; x: number; y: number }

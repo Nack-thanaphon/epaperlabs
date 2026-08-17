@@ -98,7 +98,12 @@ function drawPaperGrid(ctx: CanvasRenderingContext2D) {
   }
 }
 
-export function redrawPaper(canvas: HTMLCanvasElement, viewport: Viewport, strokes: Stroke[]) {
+export function redrawPaper(
+  canvas: HTMLCanvasElement,
+  viewport: Viewport,
+  strokes: Stroke[],
+  lassoPath: Point[] = [],
+) {
   const ctx = canvas.getContext('2d')
   if (!ctx) return
 
@@ -133,6 +138,21 @@ export function redrawPaper(canvas: HTMLCanvasElement, viewport: Viewport, strok
   drawPaperGrid(ctx)
 
   for (const stroke of strokes) drawStrokePath(ctx, stroke)
+  if (lassoPath.length >= 2) {
+    ctx.save()
+    ctx.strokeStyle = '#2563eb'
+    ctx.lineWidth = 3
+    ctx.setLineDash([14, 10])
+    ctx.lineJoin = 'round'
+    ctx.lineCap = 'round'
+    ctx.beginPath()
+    ctx.moveTo(lassoPath[0].x, lassoPath[0].y)
+    for (let i = 1; i < lassoPath.length; i += 1) {
+      ctx.lineTo(lassoPath[i].x, lassoPath[i].y)
+    }
+    ctx.stroke()
+    ctx.restore()
+  }
 }
 
 export function contentBounds(strokes: Stroke[], padding = EXPORT_PADDING) {

@@ -38,4 +38,23 @@ describe('useWhiteboard captured-pointer cancellation', () => {
     act(() => { result.current.onPointerMove(pointer(7, 'pointermove', 80, 80)) })
     expect(result.current.strokesRef.current).toHaveLength(0)
   })
+
+  it('does not add ink when lassoing — copy is image-only', () => {
+    const { result } = renderHook(() => useWhiteboard(true))
+    const canvas = document.createElement('canvas')
+    Object.defineProperties(canvas, {
+      getBoundingClientRect: { value: () => ({ left: 0, top: 0, width: 800, height: 600 }) },
+      getContext: { value: () => null },
+      setPointerCapture: { value: vi.fn() },
+      hasPointerCapture: { value: () => false },
+      releasePointerCapture: { value: vi.fn() },
+    })
+    result.current.canvasRef.current = canvas
+
+    act(() => { result.current.setTool('lasso') })
+    act(() => { result.current.onPointerDown(pointer(3, 'pointerdown', 40, 40)) })
+    act(() => { result.current.onPointerMove(pointer(3, 'pointermove', 120, 40)) })
+    act(() => { result.current.onPointerMove(pointer(3, 'pointermove', 120, 120)) })
+    expect(result.current.strokesRef.current).toHaveLength(0)
+  })
 })

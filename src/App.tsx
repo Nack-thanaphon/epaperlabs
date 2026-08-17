@@ -8,7 +8,6 @@ import { FloatingTools } from './components/FloatingTools'
 import { ProblemPanel } from './components/ProblemPanel'
 import { StatusStrip } from './components/StatusStrip'
 import { useOpenAiHost } from './hooks/useOpenAiHost'
-import { useSubmitHandwriting } from './hooks/useSubmitHandwriting'
 import { useWhiteboard } from './hooks/useWhiteboard'
 import './styles.css'
 
@@ -24,15 +23,6 @@ function App() {
     onCanvasReady: host.markCanvasReady,
     onFirstInk: host.markFirstInk,
     problemKey: exerciseKey,
-  })
-  const { status, statusText, isSubmitting, isBoardLocked, handleSubmit } = useSubmitHandwriting({
-    strokesRef: board.strokesRef,
-    exportBlob: board.exportBlob,
-    beforeSubmit: board.cancelInput,
-    onDiagnosticFailure: host.reportSubmitFailure,
-    strokeRevision: board.revision,
-    problemKey: exerciseKey,
-    onStageLog: host.pushLog,
   })
 
   const openWriting = () => {
@@ -72,8 +62,7 @@ function App() {
         displayMode={host.displayMode}
         hostName={host.hostName}
         elapsedText={host.elapsedText}
-        status={status}
-        logLine={host.logLine}
+        logLine={board.lassoHint || host.logLine}
       />
       <DebugPanel
         error={host.launchError}
@@ -91,17 +80,13 @@ function App() {
           onColorChange={board.setColor}
           onSizeChange={board.setSize}
         />
+        {board.lassoHint && <span className="lassoHint">{board.lassoHint}</span>}
         <BottomBar
-          status={status}
-          isSubmitting={isSubmitting}
-          mutationLocked={isBoardLocked}
-          statusText={statusText}
           canUndo={board.canUndo}
           canRedo={board.canRedo}
           onUndo={board.undo}
           onRedo={board.redo}
           onClear={board.clearBoard}
-          onSubmit={handleSubmit}
         />
       </div>
       )}
@@ -111,7 +96,7 @@ function App() {
         canvasRef={board.canvasRef}
         tool={board.tool}
         writingReady={writingOpen}
-        inputLocked={isBoardLocked}
+        inputLocked={false}
         parked={!writingOpen}
         onPointerDown={board.onPointerDown}
         onPointerMove={board.onPointerMove}

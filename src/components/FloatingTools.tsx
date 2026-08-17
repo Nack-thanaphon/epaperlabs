@@ -22,6 +22,7 @@ export function FloatingTools({
     <div className="floatingTools" aria-label="Drawing tools">
       <button className={`modeButton ${tool === 'pen' ? 'active' : ''}`} aria-label="ปากกา" onClick={() => onToolChange('pen')}>✎</button>
       <button className={`modeButton ${tool === 'eraser' ? 'active' : ''}`} aria-label="ลบ" onClick={() => onToolChange('eraser')}>⌫</button>
+      <button className={`modeButton ${tool === 'lasso' ? 'active' : ''}`} aria-label="ลasso คัดลอกเป็นรูป" onClick={() => onToolChange('lasso')}>◌</button>
       <button className={`modeButton ${tool === 'pan' ? 'active' : ''}`} aria-label="เลื่อน" onClick={() => onToolChange('pan')}>✥</button>
       <span className="separator" />
       {COLORS.map((swatch) => (

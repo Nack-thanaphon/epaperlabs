@@ -122,13 +122,6 @@ export function useOpenAiHost() {
     if (!recorder.has('first_ink')) recorder.record('first_ink')
   }, [recorder])
 
-  const reportSubmitFailure = useCallback((detail: string) => {
-    recorder.record('submit_failed', detail)
-    recorder.fail('E07', detail)
-    setLaunchError(recorder.snapshot())
-    pushLog(`E07 ${detail}`)
-  }, [pushLog, recorder])
-
   const retryLaunch = useCallback(() => {
     recorder.reset()
     recorder.record('javascript_started')
@@ -151,7 +144,6 @@ export function useOpenAiHost() {
     launchError,
     markCanvasReady,
     markFirstInk,
-    reportSubmitFailure,
     retryLaunch,
     reportState,
     setReportState,

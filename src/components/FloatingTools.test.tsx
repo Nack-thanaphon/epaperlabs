@@ -16,6 +16,7 @@ describe('FloatingTools', () => {
       />,
     )
 
+    expect(screen.getByRole('button', { name: 'ลasso คัดลอกเป็นรูป' })).toBeTruthy()
     expect(screen.queryByText('−')).toBeNull()
     expect(screen.queryByText(/%/)).toBeNull()
     expect(screen.queryByText('＋')).toBeNull()
