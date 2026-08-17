@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { canExportLasso, lassoArea, lassoBounds, pointInPolygon } from './lasso'
+import { canExportLasso, lassoArea, lassoBounds, pointInPolygon, rectPolygon } from './lasso'
 import type { Point } from '../types'
 
 const square: Point[] = [
@@ -26,11 +26,17 @@ describe('lasso geometry', () => {
     expect(canExportLasso(square)).toBe(true)
   })
 
-  it('pads the lasso bounding box', () => {
-    const bounds = lassoBounds(square, 10)
-    expect(bounds.x).toBe(-10)
-    expect(bounds.y).toBe(-10)
-    expect(bounds.width).toBe(120)
-    expect(bounds.height).toBe(120)
+  it('builds a rectangle polygon from two corners', () => {
+    const polygon = rectPolygon(
+      { x: 80, y: 20, pressure: 0 },
+      { x: 10, y: 60, pressure: 0 },
+    )
+    expect(polygon).toEqual([
+      { x: 10, y: 20, pressure: 0 },
+      { x: 80, y: 20, pressure: 0 },
+      { x: 80, y: 60, pressure: 0 },
+      { x: 10, y: 60, pressure: 0 },
+    ])
+    expect(canExportLasso(polygon)).toBe(true)
   })
 })

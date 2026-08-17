@@ -1,11 +1,14 @@
 export const COLORS = ['#111827', '#2563eb', '#dc2626']
-export const SIZES = [4, 7, 11]
-export const SIZE_LABELS: Record<number, string> = { 4: 'S', 7: 'M', 11: 'L' }
+export const DEFAULT_PEN_SIZE = 16
+export const MIN_PEN_SIZE = 2
+export const MAX_PEN_SIZE = 32
 export const PAPER_WIDTH = 2400
 export const PAPER_HEIGHT = 1600
 export const EXPORT_SCALE = 1
 export const EXPORT_PADDING = 80
 export const EXPORT_MAX_EDGE = 1600
+export const COPY_MAX_EDGE = 1024
+export const COPY_MAX_BYTES = 700 * 1024
 export const GRID_STEP = 80
 export const DRAFT_PERSIST_MS = 400
 export const MAX_DRAFT_BYTES = 96 * 1024

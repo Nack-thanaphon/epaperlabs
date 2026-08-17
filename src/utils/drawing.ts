@@ -66,12 +66,12 @@ export function drawStrokePath(ctx: CanvasRenderingContext2D, stroke: Stroke) {
     stroke.points.map((p) => [p.x, p.y, p.pressure]),
     {
       size: stroke.size,
-      thinning: 0.55,
-      smoothing: 0.55,
-      streamline: 0.45,
+      thinning: 0.5,
+      smoothing: 0.5,
+      streamline: 0.5,
       simulatePressure: false,
       start: { taper: 0, cap: true },
-      end: { taper: stroke.size * 2, cap: true },
+      end: { taper: 0, cap: true },
     }
   )
 
@@ -118,7 +118,7 @@ export function redrawPaper(
 
   ctx.setTransform(1, 0, 0, 1, 0, 0)
   ctx.clearRect(0, 0, width, height)
-  ctx.fillStyle = '#f8fafc'
+  ctx.fillStyle = '#ffffff'
   ctx.fillRect(0, 0, width, height)
 
   ctx.setTransform(
@@ -129,13 +129,6 @@ export function redrawPaper(
     dpr * viewport.x,
     dpr * viewport.y
   )
-
-  ctx.fillStyle = '#ffffff'
-  ctx.strokeStyle = '#e5e7eb'
-  ctx.lineWidth = 2
-  ctx.fillRect(0, 0, PAPER_WIDTH, PAPER_HEIGHT)
-  ctx.strokeRect(0, 0, PAPER_WIDTH, PAPER_HEIGHT)
-  drawPaperGrid(ctx)
 
   for (const stroke of strokes) drawStrokePath(ctx, stroke)
   if (lassoPath.length >= 2) {
@@ -150,6 +143,7 @@ export function redrawPaper(
     for (let i = 1; i < lassoPath.length; i += 1) {
       ctx.lineTo(lassoPath[i].x, lassoPath[i].y)
     }
+    ctx.closePath()
     ctx.stroke()
     ctx.restore()
   }

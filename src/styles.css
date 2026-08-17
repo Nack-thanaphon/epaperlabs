@@ -2,20 +2,12 @@ html,
 body,
 #root {
   width: 100%;
+  height: 100%;
   min-height: 0;
   margin: 0;
   overscroll-behavior: none;
   touch-action: none;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-}
-
-html,
-body {
-  height: 100%;
-}
-
-#root {
-  height: 100%;
 }
 
 * {
@@ -30,46 +22,22 @@ button {
 }
 
 .appShell {
-  width: 100%;
+  position: fixed;
+  inset: 0;
+  display: grid;
+  grid-template-rows: 1fr;
+  overflow: hidden;
+  background: #fff;
+  color: #111827;
   overscroll-behavior: none;
   touch-action: none;
 }
-
-.appShell.writingMode {
-  position: fixed;
-  inset: 0;
-  height: 100%;
-  min-height: 0;
-  display: grid;
-  grid-template-rows: auto 1fr;
-  overflow: hidden;
-  padding-top: env(safe-area-inset-top);
-  padding-right: env(safe-area-inset-right);
-  padding-left: env(safe-area-inset-left);
-  background: #0b0b0f;
-  color: #f7f7f8;
-}
-
-.bottomBar {
-  z-index: 10;
-  display: flex;
-  flex: 0 0 auto;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 12px;
-  padding: 4px 10px;
-  min-width: max-content;
-  background: rgba(12, 12, 16, 0.94);
-  backdrop-filter: blur(16px);
-  border-color: rgba(255, 255, 255, 0.12);
-}
-
 
 .boardWrap {
   min-height: 0;
   position: relative;
   overflow: hidden;
-  background: #f8fafc;
+  background: #fff;
   touch-action: none;
   overscroll-behavior: none;
 }
@@ -82,10 +50,7 @@ button {
   overscroll-behavior: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
-  background: #f8fafc;
-}
-
-.paperCanvas.tool-pen {
+  background: #fff;
   cursor: crosshair;
 }
 
@@ -93,7 +58,8 @@ button {
   cursor: cell;
 }
 
-.paperCanvas.tool-lasso {
+.paperCanvas.tool-lasso,
+.paperCanvas.tool-rect {
   cursor: crosshair;
 }
 
@@ -106,153 +72,91 @@ button {
   pointer-events: none;
 }
 
-.lassoHint {
-  flex: 0 0 auto;
-  padding: 0 10px;
-  color: #93c5fd;
-  font-size: 12px;
-  font-weight: 700;
-  white-space: nowrap;
-}
-
-.bottomControls {
+.toolbar {
+  position: absolute;
   z-index: 10;
+  left: 12px;
+  right: 12px;
+  bottom: max(12px, env(safe-area-inset-bottom));
   display: flex;
   flex-wrap: nowrap;
   align-items: center;
+  gap: 4px;
   min-width: 0;
-  max-height: 56px;
-  padding-bottom: 0;
-  background: rgba(12, 12, 16, 0.96);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-}
-
-.toolButton,
-.floatingTools button {
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  padding: 8px 10px;
+  overflow-x: auto;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(15, 23, 42, 0.08);
   border-radius: 12px;
-  color: #f7f7f8;
-  background: rgba(255, 255, 255, 0.1);
-  font-size: 15px;
-  font-weight: 800;
-  cursor: pointer;
+  box-shadow: 0 8px 28px rgba(15, 23, 42, 0.12);
   touch-action: manipulation;
-  min-height: 44px;
 }
 
-.toolButton {
-  padding: 10px 16px;
+.toolbar button {
+  flex: 0 0 auto;
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #334155;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
 }
 
-.toolButton.danger {
-  color: #fecaca;
-  border-color: rgba(248, 113, 113, 0.5);
-  background: rgba(127, 29, 29, 0.25);
+.toolbar button.active {
+  color: #0f172a;
+  background: #e2e8f0;
 }
 
-.toolButton:disabled {
-  opacity: 0.65;
+.toolbar button:disabled {
+  opacity: 0.35;
   cursor: default;
 }
 
-.floatingTools {
+.sizeControl {
   display: flex;
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   align-items: center;
   gap: 8px;
-  max-width: 100%;
-  overflow-x: auto;
-  padding: 4px 10px;
-  min-width: 0;
-  background: transparent;
-  touch-action: manipulation;
+  margin-left: 8px;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 600;
 }
 
-.floatingTools button {
-  min-width: 44px;
-  padding: 8px 12px;
-  color: #111827;
-  background: #f8fafc;
-  border-color: rgba(15, 23, 42, 0.12);
+.sizeControl input {
+  width: 88px;
+  accent-color: #0f172a;
 }
 
-.floatingTools .modeButton {
-  min-width: 44px;
-  width: 44px;
-  min-height: 44px;
-  height: 44px;
-  padding: 0;
-  border-radius: 10px;
-  font-size: 19px;
-  line-height: 1;
+.swatches {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 6px;
+  margin-left: 8px;
 }
 
-.floatingTools button.active {
-  color: white;
-  border-color: #2563eb;
-  background: #2563eb;
-}
-
-.floatingTools .swatch {
-  min-width: 44px;
-  width: 44px;
-  height: 44px;
-  min-height: 44px;
+.swatch {
+  width: 22px;
+  height: 22px;
+  min-height: 22px;
+  min-width: 22px;
   padding: 0;
   border-radius: 999px;
-  border: 3px solid rgba(255, 255, 255, 0.9);
-  box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.22);
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.2);
 }
 
-.floatingTools .swatch.active {
-  outline: 3px solid #2563eb;
-  outline-offset: 2px;
+.swatch.active {
+  box-shadow: 0 0 0 2px #0f172a;
 }
 
-.separator {
-  width: 1px;
-  height: 28px;
-  background: rgba(15, 23, 42, 0.14);
-  flex: 0 0 auto;
-}
-
-@media (max-width: 720px) {
-  .bottomBar {
-    padding-inline: 10px;
-    gap: 8px;
-  }
-
-
-  .toolButton,
-  .floatingTools button {
-    padding: 9px 12px;
-    font-size: 14px;
-  }
-
-  .floatingTools {
-    padding-inline: 10px;
-  }
-}
-
-@media (max-width: 600px) {
-  .bottomBar {
-    flex: 0 0 auto;
-    width: auto;
-    min-width: 0;
-    gap: 6px;
-    padding-inline: 6px;
-  }
-
-  .bottomBar .toolButton {
-    min-width: 44px;
-    padding-inline: 6px;
-  }
-
-  .floatingTools {
-    padding-inline: 8px;
-  }
-
-  .historyLabel {
-    display: none;
-  }
+.lassoHint {
+  margin-left: auto;
+  color: #0369a1;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
 }

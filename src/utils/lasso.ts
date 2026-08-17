@@ -1,5 +1,6 @@
-import { EXPORT_MAX_EDGE, EXPORT_SCALE } from '../constants'
+import { COPY_MAX_EDGE, EXPORT_SCALE } from '../constants'
 import type { Point, Stroke } from '../types'
+import { encodeCopyBlob } from './copyImage'
 import { drawStrokePath } from './drawing'
 
 const LASSO_PADDING = 16
@@ -52,6 +53,19 @@ export function lassoBounds(polygon: Point[], padding = LASSO_PADDING) {
   }
 }
 
+export function rectPolygon(a: Point, b: Point): Point[] {
+  const left = Math.min(a.x, b.x)
+  const right = Math.max(a.x, b.x)
+  const top = Math.min(a.y, b.y)
+  const bottom = Math.max(a.y, b.y)
+  return [
+    { x: left, y: top, pressure: 0 },
+    { x: right, y: top, pressure: 0 },
+    { x: right, y: bottom, pressure: 0 },
+    { x: left, y: bottom, pressure: 0 },
+  ]
+}
+
 export function canExportLasso(polygon: Point[]): boolean {
   return polygon.length >= 3 && lassoArea(polygon) >= MIN_LASSO_AREA
 }
@@ -60,13 +74,15 @@ export async function exportLassoBlob(strokes: Stroke[], polygon: Point[]): Prom
   if (!canExportLasso(polygon)) throw new Error('Lasso is too small')
   const bounds = lassoBounds(polygon)
   const longest = Math.max(bounds.width, bounds.height)
-  const scale = Math.min(EXPORT_SCALE, EXPORT_MAX_EDGE / longest)
+  const scale = Math.min(EXPORT_SCALE, COPY_MAX_EDGE / longest)
   const canvas = document.createElement('canvas')
   canvas.width = Math.max(1, Math.round(bounds.width * scale))
   canvas.height = Math.max(1, Math.round(bounds.height * scale))
   const ctx = canvas.getContext('2d')
   if (!ctx) throw new Error('No canvas context')
 
+  ctx.fillStyle = '#ffffff'
+  ctx.fillRect(0, 0, canvas.width, canvas.height)
   ctx.setTransform(scale, 0, 0, scale, -bounds.x * scale, -bounds.y * scale)
   ctx.beginPath()
   ctx.moveTo(polygon[0].x, polygon[0].y)
@@ -77,7 +93,5 @@ export async function exportLassoBlob(strokes: Stroke[], polygon: Point[]): Prom
   ctx.fillRect(bounds.x, bounds.y, bounds.width, bounds.height)
   for (const stroke of strokes) drawStrokePath(ctx, stroke)
 
-  return new Promise<Blob>((resolve, reject) => {
-    canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error('PNG export failed')), 'image/png')
-  })
+  return encodeCopyBlob(canvas)
 }
