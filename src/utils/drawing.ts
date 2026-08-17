@@ -66,12 +66,12 @@ export function drawStrokePath(ctx: CanvasRenderingContext2D, stroke: Stroke) {
     stroke.points.map((p) => [p.x, p.y, p.pressure]),
     {
       size: stroke.size,
-      thinning: 0.5,
-      smoothing: 0.5,
-      streamline: 0.5,
-      simulatePressure: false,
+      thinning: 0.4,
+      smoothing: 0.65,
+      streamline: 0.55,
+      simulatePressure: true,
       start: { taper: 0, cap: true },
-      end: { taper: 0, cap: true },
+      end: { taper: 8, cap: true },
     }
   )
 
@@ -103,6 +103,7 @@ export function redrawPaper(
   viewport: Viewport,
   strokes: Stroke[],
   lassoPath: Point[] = [],
+  predicted: Point[] = [],
 ) {
   const ctx = canvas.getContext('2d')
   if (!ctx) return
@@ -130,7 +131,14 @@ export function redrawPaper(
     dpr * viewport.y
   )
 
-  for (const stroke of strokes) drawStrokePath(ctx, stroke)
+  const liveId = predicted.length > 0 ? strokes.at(-1)?.id : null
+  for (const stroke of strokes) {
+    if (stroke.id === liveId) {
+      drawStrokePath(ctx, { ...stroke, points: [...stroke.points, ...predicted] })
+    } else {
+      drawStrokePath(ctx, stroke)
+    }
+  }
   if (lassoPath.length >= 2) {
     ctx.save()
     ctx.strokeStyle = '#2563eb'

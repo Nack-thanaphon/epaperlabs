@@ -14,3 +14,4 @@ export const DRAFT_PERSIST_MS = 400
 export const MAX_DRAFT_BYTES = 96 * 1024
 export const MIN_SCALE = 0.3
 export const MAX_SCALE = 3
+export const SELECT_IDLE_MS = 4000

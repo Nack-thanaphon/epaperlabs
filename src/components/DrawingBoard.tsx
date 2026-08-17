@@ -1,4 +1,4 @@
-import type { PointerEvent, RefObject, TouchEvent, WheelEvent } from 'react'
+import type { PointerEvent, RefObject, TouchEvent } from 'react'
 import type { Tool } from '../types'
 
 interface DrawingBoardProps {
@@ -10,7 +10,7 @@ interface DrawingBoardProps {
   onPointerMove: (event: PointerEvent<HTMLCanvasElement>) => void
   onPointerUp: (event: PointerEvent<HTMLCanvasElement>) => void
   onPointerCancel: (event: PointerEvent<HTMLCanvasElement>) => void
-  onGestureBlock: (event: TouchEvent<HTMLCanvasElement> | WheelEvent<HTMLCanvasElement>) => void
+  onGestureBlock: (event: TouchEvent<HTMLCanvasElement>) => void
 }
 
 export function DrawingBoard({
@@ -36,7 +36,6 @@ export function DrawingBoard({
         onTouchStart={onGestureBlock}
         onTouchMove={onGestureBlock}
         onTouchEnd={onGestureBlock}
-        onWheel={onGestureBlock}
       />
     </div>
   )

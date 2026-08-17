@@ -9,13 +9,14 @@ function pointer(
   type: 'pointerdown' | 'pointermove',
   x: number,
   y: number,
-  pointerType: 'pen' | 'mouse' = 'pen',
+  pointerType: 'pen' | 'mouse' | 'touch' = 'pen',
+  isPrimary = true,
 ) {
   return {
     pointerId,
     pointerType,
     button: 0,
-    isPrimary: true,
+    isPrimary,
     clientX: x,
     clientY: y,
     pressure: 0.6,
@@ -85,5 +86,62 @@ describe('useWhiteboard captured-pointer cancellation', () => {
     act(() => { result.current.onPointerMove(pointer(1, 'pointermove', 80, 80, 'mouse')) })
     expect(result.current.strokesRef.current).toHaveLength(1)
     expect(result.current.strokesRef.current[0].points.length).toBeGreaterThan(1)
+  })
+
+  it('zooms when a second non-primary finger pinches', () => {
+    const { result } = renderHook(() => useWhiteboard(true))
+    const canvas = document.createElement('canvas')
+    Object.defineProperties(canvas, {
+      getBoundingClientRect: { value: () => ({ left: 0, top: 0, width: 800, height: 600 }) },
+      getContext: { value: () => null },
+      setPointerCapture: { value: vi.fn() },
+      hasPointerCapture: { value: () => false },
+      releasePointerCapture: { value: vi.fn() },
+    })
+    result.current.canvasRef.current = canvas
+
+    act(() => { result.current.onPointerDown(pointer(1, 'pointerdown', 40, 40, 'touch', true)) })
+    act(() => { result.current.onPointerDown(pointer(2, 'pointerdown', 140, 40, 'touch', false)) })
+    act(() => { result.current.onPointerMove(pointer(2, 'pointermove', 240, 40, 'touch', false)) })
+    expect(result.current.viewport.scale).toBeGreaterThan(0.75)
+  })
+
+  it('returns to draw if lasso or rect stays still for 4 seconds', () => {
+    vi.useFakeTimers()
+    const { result } = renderHook(() => useWhiteboard(true))
+
+    act(() => { result.current.setTool('lasso') })
+    expect(result.current.tool).toBe('lasso')
+    act(() => { vi.advanceTimersByTime(3999) })
+    expect(result.current.tool).toBe('lasso')
+    act(() => { vi.advanceTimersByTime(1) })
+    expect(result.current.tool).toBe('pen')
+
+    act(() => { result.current.setTool('rect') })
+    act(() => { vi.advanceTimersByTime(4000) })
+    expect(result.current.tool).toBe('pen')
+    vi.useRealTimers()
+  })
+
+  it('keeps lasso while the pointer is still moving', () => {
+    vi.useFakeTimers()
+    const { result } = renderHook(() => useWhiteboard(true))
+    const canvas = document.createElement('canvas')
+    Object.defineProperties(canvas, {
+      getBoundingClientRect: { value: () => ({ left: 0, top: 0, width: 800, height: 600 }) },
+      getContext: { value: () => null },
+      setPointerCapture: { value: vi.fn() },
+      hasPointerCapture: { value: () => false },
+      releasePointerCapture: { value: vi.fn() },
+    })
+    result.current.canvasRef.current = canvas
+
+    act(() => { result.current.setTool('lasso') })
+    act(() => { result.current.onPointerDown(pointer(8, 'pointerdown', 40, 40)) })
+    act(() => { vi.advanceTimersByTime(3000) })
+    act(() => { result.current.onPointerMove(pointer(8, 'pointermove', 120, 80)) })
+    act(() => { vi.advanceTimersByTime(3000) })
+    expect(result.current.tool).toBe('lasso')
+    vi.useRealTimers()
   })
 })
