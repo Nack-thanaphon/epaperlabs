@@ -26,17 +26,10 @@ describe('bottom controls layout', () => {
     expect(rule('.bottomBar')).toContain('flex: 0 0 auto')
   })
 
-  it('places the compact controls above the problem and paper', () => {
-    expect(appSource.indexOf('className="bottomControls"')).toBeLessThan(appSource.indexOf('<ProblemPanel'))
-    expect(appSource.indexOf('<ProblemPanel')).toBeLessThan(appSource.indexOf('<DrawingBoard'))
-    expect(rule('.appShell.writingMode')).toContain('grid-template-rows: auto auto 1fr')
+  it('places the controls above the paper', () => {
+    expect(appSource.indexOf('className="bottomControls"')).toBeLessThan(appSource.indexOf('<DrawingBoard'))
+    expect(rule('.appShell.writingMode')).toContain('grid-template-rows: auto 1fr')
     expect(rule('.bottomControls')).toContain('max-height: 56px')
     expect(rule('.bottomControls')).toContain('padding-bottom: 0')
-  })
-
-  it('keeps ตอบคำถามนี้ as a bottom underline in the inline card', () => {
-    expect(appSource.indexOf('<ProblemPanel')).toBeLessThan(appSource.indexOf('<AnswerPrompt'))
-    expect(rule('.answerPrompt')).toContain('margin-top: auto')
-    expect(rule('.answerPromptButton')).toContain('border-bottom: 2px solid #2563eb')
   })
 })

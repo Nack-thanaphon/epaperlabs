@@ -3,6 +3,7 @@ import type { Stroke } from '../types'
 
 export const DRAFT_SOURCE = 'papa-handwriting-board'
 export const BLANK_PROBLEM_KEY = 'blank'
+const STORAGE_KEY = 'papa-draft'
 
 export function problemKey(problem: string) {
   return problem.trim() || BLANK_PROBLEM_KEY
@@ -12,12 +13,6 @@ interface DraftPayload {
   v: 1 | 2
   problemKey?: string
   strokes: Stroke[]
-}
-
-interface PrivateContent {
-  source?: string
-  papaDraft?: unknown
-  [key: string]: unknown
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -69,46 +64,29 @@ export function buildDraftPayload(strokes: Stroke[], key = BLANK_PROBLEM_KEY): D
   return payload
 }
 
-function currentWidgetState() {
-  return window.openai?.widgetState ?? {}
-}
-
-function currentPrivateContent(): PrivateContent {
-  return asRecord(currentWidgetState().privateContent) ?? {}
-}
-
 export function readHostDraft(key: string): Stroke[] | null {
-  const parsed = parseDraft(currentPrivateContent().papaDraft)
-  if (!parsed) return null
-  if (parsed.problemKey && parsed.problemKey !== key) return null
-  if (!parsed.problemKey && key !== BLANK_PROBLEM_KEY) return null
-  return parsed.strokes
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (!raw) return null
+    const parsed = parseDraft(JSON.parse(raw))
+    if (!parsed) return null
+    if (parsed.problemKey && parsed.problemKey !== key) return null
+    if (!parsed.problemKey && key !== BLANK_PROBLEM_KEY) return null
+    return parsed.strokes
+  } catch {
+    return null
+  }
 }
 
 export async function writeHostDraft(strokes: Stroke[], key: string): Promise<void> {
-  const setWidgetState = window.openai?.setWidgetState
-  if (!setWidgetState) return
   const papaDraft = buildDraftPayload(strokes, key)
-  if (!papaDraft && strokes.length > 0) return
-  const state = currentWidgetState()
-  await setWidgetState({
-    ...state,
-    privateContent: {
-      ...currentPrivateContent(),
-      source: DRAFT_SOURCE,
-      papaDraft: papaDraft ?? undefined,
-    },
-  })
+  if (!papaDraft) {
+    if (strokes.length === 0) localStorage.removeItem(STORAGE_KEY)
+    return
+  }
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(papaDraft))
 }
 
 export async function clearHostDraft(): Promise<void> {
-  const setWidgetState = window.openai?.setWidgetState
-  if (!setWidgetState) return
-  const privateContent = { ...currentPrivateContent() }
-  delete privateContent.papaDraft
-  const state = currentWidgetState()
-  await setWidgetState({
-    ...state,
-    privateContent,
-  })
+  localStorage.removeItem(STORAGE_KEY)
 }

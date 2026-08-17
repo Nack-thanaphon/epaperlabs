@@ -1,14 +1,13 @@
 {
   "name": "epaperlabs",
   "version": "0.1.0",
-  "description": "E-PaperLabs — handwriting canvas embedded inside ChatGPT conversations via MCP Apps",
+  "description": "Papa — standalone handwriting board",
   "type": "module",
   "scripts": {
-    "start": "node server.js",
-    "dev": "vite --host 127.0.0.1",
-    "dev:mcp": "node --watch server.js",
+    "dev": "vite --host",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
+    "start": "vite preview --host 0.0.0.0 --port 3000",
     "typecheck": "tsc --noEmit",
     "test:node": "node --test test/*.test.mjs",
     "test:client": "vitest run",
@@ -16,14 +15,11 @@
     "verify": "npm run typecheck && npm test && npm run build"
   },
   "dependencies": {
-    "@modelcontextprotocol/ext-apps": "^1.0.1",
-    "@modelcontextprotocol/sdk": "^1.20.2",
     "@vitejs/plugin-react": "^6.0.5",
     "perfect-freehand": "^1.2.3",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "vite": "^8.2.1",
-    "zod": "^3.25.76"
+    "vite": "^8.2.1"
   },
   "devDependencies": {
     "@testing-library/react": "^16.3.2",

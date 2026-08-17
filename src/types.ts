@@ -9,32 +9,3 @@ export type PointerState = {
   y: number
   pointerType: string
 }
-
-declare global {
-  interface Window {
-    openai?: {
-      uploadFile?: (file: File, options?: { library?: boolean }) => Promise<{ fileId: string }>
-      widgetState?: {
-        modelContent?: string
-        privateContent?: unknown
-        imageIds?: string[]
-      }
-      setWidgetState?: (state: {
-        modelContent?: string
-        privateContent?: unknown
-        imageIds?: string[]
-      }) => void | Promise<void>
-      sendFollowUpMessage?: (message: { prompt: string; scrollToBottom?: boolean }) => Promise<void>
-      requestDisplayMode?: (request: { mode: 'inline' | 'fullscreen' | 'picture-in-picture' }) => Promise<void>
-      displayMode?: 'inline' | 'fullscreen' | 'picture-in-picture'
-      safeArea?: {
-        top?: number
-        right?: number
-        bottom?: number
-        left?: number
-        insets?: { top?: number; right?: number; bottom?: number; left?: number }
-      }
-      toolInput?: { problem?: string }
-    }
-  }
-}
