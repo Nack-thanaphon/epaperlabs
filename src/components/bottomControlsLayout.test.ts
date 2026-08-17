@@ -33,4 +33,10 @@ describe('bottom controls layout', () => {
     expect(rule('.bottomControls')).toContain('max-height: 56px')
     expect(rule('.bottomControls')).toContain('padding-bottom: 0')
   })
+
+  it('keeps ตอบคำถามนี้ as a bottom underline in the inline card', () => {
+    expect(appSource.indexOf('<ProblemPanel')).toBeLessThan(appSource.indexOf('<AnswerPrompt'))
+    expect(rule('.answerPrompt')).toContain('margin-top: auto')
+    expect(rule('.answerPromptButton')).toContain('border-bottom: 2px solid #2563eb')
+  })
 })

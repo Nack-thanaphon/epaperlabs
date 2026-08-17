@@ -50,6 +50,14 @@ button {
   white-space: normal;
 }
 
+.appShell.inlineMode {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: #fff;
+  color: #111827;
+}
+
 .appShell.writingMode {
   position: fixed;
   inset: 0;
@@ -63,6 +71,39 @@ button {
   padding-left: max(var(--host-safe-left, 0px), env(safe-area-inset-left));
   background: #0b0b0f;
   color: #f7f7f8;
+}
+
+.boardParked {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.answerPrompt {
+  margin-top: auto;
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: center;
+  padding: 18px 16px 20px;
+  border-top: 1px solid #e5e7eb;
+  background: #fff;
+}
+
+.answerPromptButton {
+  min-height: 44px;
+  padding: 8px 4px;
+  border: 0;
+  border-bottom: 2px solid #2563eb;
+  border-radius: 0;
+  background: transparent;
+  color: #2563eb;
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+  touch-action: manipulation;
 }
 
 .bottomBar {
@@ -97,39 +138,10 @@ button {
   border-bottom: 1px solid #e5e7eb;
 }
 
-.problemCollapse,
-.problemRestore {
-  position: absolute;
-  right: 8px;
-  z-index: 1;
-  width: 44px;
-  height: 44px;
-  padding: 0;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  color: #6b7280;
-  font: inherit;
-  font-size: 20px;
-  cursor: pointer;
-  touch-action: manipulation;
-}
-
-.problemCollapse {
-  top: 8px;
-}
-
-.problemRestore {
-  position: relative;
-  right: auto;
-  display: block;
-  margin: 2px auto;
-}
-
 .problemText {
   max-height: 30vh;
   overflow: auto;
-  padding: 18px 56px 18px 18px;
+  padding: 18px;
   white-space: pre-wrap;
   font-size: clamp(16px, 2.2vw, 21px);
   font-weight: 600;

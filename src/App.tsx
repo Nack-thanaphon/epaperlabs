@@ -1,5 +1,6 @@
-import React, { type CSSProperties } from 'react'
+import React, { useState, type CSSProperties } from 'react'
 import { createRoot } from 'react-dom/client'
+import { AnswerPrompt } from './components/AnswerPrompt'
 import { BottomBar } from './components/BottomBar'
 import { DebugPanel } from './components/DebugPanel'
 import { DrawingBoard } from './components/DrawingBoard'
@@ -18,6 +19,7 @@ const INCIDENT_ENDPOINT =
 function App() {
   const host = useOpenAiHost()
   const { problem, safeArea, exerciseKey } = host
+  const [writingOpen, setWritingOpen] = useState(false)
   const board = useWhiteboard(true, {
     onCanvasReady: host.markCanvasReady,
     onFirstInk: host.markFirstInk,
@@ -32,6 +34,11 @@ function App() {
     problemKey: exerciseKey,
     onStageLog: host.pushLog,
   })
+
+  const openWriting = () => {
+    setWritingOpen(true)
+    host.requestFullscreen()
+  }
 
   const sendReport = async () => {
     if (!host.launchError) return
@@ -51,7 +58,7 @@ function App() {
 
   return (
     <div
-      className="appShell writingMode"
+      className={`appShell ${writingOpen ? 'writingMode' : 'inlineMode'}`}
       style={{
         '--host-safe-top': `${safeArea.top}px`,
         '--host-safe-right': `${safeArea.right}px`,
@@ -74,6 +81,7 @@ function App() {
         onSendReport={sendReport}
         reportState={host.reportState}
       />
+      {writingOpen && (
       <div className="bottomControls">
         <FloatingTools
           tool={board.tool}
@@ -96,19 +104,22 @@ function App() {
           onSubmit={handleSubmit}
         />
       </div>
+      )}
       </div>
       <ProblemPanel problem={problem} />
       <DrawingBoard
         canvasRef={board.canvasRef}
         tool={board.tool}
-        writingReady
+        writingReady={writingOpen}
         inputLocked={isBoardLocked}
+        parked={!writingOpen}
         onPointerDown={board.onPointerDown}
         onPointerMove={board.onPointerMove}
         onPointerUp={board.endPointer}
         onPointerCancel={board.cancelPointer}
         onGestureBlock={board.blockCanvasGesture}
       />
+      {!writingOpen && <AnswerPrompt onAnswer={openWriting} />}
     </div>
   )
 }

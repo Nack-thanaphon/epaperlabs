@@ -83,7 +83,6 @@ export function useOpenAiHost() {
       syncProblem()
       syncSafeArea()
       setDisplayMode(readDisplayMode())
-      if (window.openai?.requestDisplayMode) requestFullscreen()
     }
 
     onHostGlobals()
@@ -92,7 +91,7 @@ export function useOpenAiHost() {
     return () => {
       window.removeEventListener('openai:set_globals', onHostGlobals)
     }
-  }, [pushLog, recorder, requestFullscreen])
+  }, [pushLog, recorder])
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -139,8 +138,7 @@ export function useOpenAiHost() {
     setReportState('idle')
     fullscreenAskedRef.current = false
     pushLog('retry')
-    requestFullscreen()
-  }, [pushLog, recorder, requestFullscreen])
+  }, [pushLog, recorder])
 
   return {
     problem,
@@ -149,6 +147,7 @@ export function useOpenAiHost() {
     displayMode,
     hostName: hostLabel(),
     elapsedText,
+    requestFullscreen,
     launchError,
     markCanvasReady,
     markFirstInk,
