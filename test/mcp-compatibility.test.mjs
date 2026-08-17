@@ -17,13 +17,23 @@ describe('MCP compatibility window', () => {
     assert.ok(!LEGACY_RESOURCE_URIS.includes(RESOURCE_URI))
   })
 
-  test('keeps papa plus cached tool aliases', () => {
+  test('keeps papa plus cached tool aliases on the current URI', () => {
     assert.deepEqual(
       BOARD_TOOL_ALIASES.map(({ name }) => name),
       ['papa', 'paper', 'open_epaper', 'open_epaper_lite']
     )
     for (const alias of BOARD_TOOL_ALIASES) {
       assert.equal(alias.resourceUri, RESOURCE_URI)
+    }
+  })
+
+  test('papa is the only tool with the tutoring prompt; aliases stay quiet', () => {
+    const papa = BOARD_TOOL_ALIASES.find((alias) => alias.name === 'papa')
+    const aliases = BOARD_TOOL_ALIASES.filter((alias) => alias.name !== 'papa')
+    assert.ok(papa.description.includes('call the tool named papa IMMEDIATELY'))
+    for (const alias of aliases) {
+      assert.ok(alias.description.includes('Do not call'))
+      assert.ok(!alias.description.includes('IMMEDIATELY'))
     }
   })
 })
