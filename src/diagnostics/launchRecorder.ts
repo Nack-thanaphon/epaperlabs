@@ -44,8 +44,8 @@ export interface DiagnosticSnapshot {
   }
 }
 
-const BUILD_VERSION = 'papa-v12-local'
-const RESOURCE_URI = 'ui://papa/papa-v12-local.html'
+const BUILD_VERSION = 'papa-v13-web'
+const RESOURCE_URI = 'ui://papa/papa-v13-web.html'
 
 function now(): number {
   return Math.round(

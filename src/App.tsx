@@ -60,7 +60,14 @@ function App() {
       } as CSSProperties}
     >
       <div className="chromeTop">
-      <StatusStrip buildVersion={host.buildVersion} status={status} logLine={host.logLine} />
+      <StatusStrip
+        buildVersion={host.buildVersion}
+        displayMode={host.displayMode}
+        hostName={host.hostName}
+        elapsedText={host.elapsedText}
+        status={status}
+        logLine={host.logLine}
+      />
       <DebugPanel
         error={host.launchError}
         onRetry={host.retryLaunch}
@@ -96,7 +103,6 @@ function App() {
         tool={board.tool}
         writingReady
         inputLocked={isBoardLocked}
-        parked={false}
         onPointerDown={board.onPointerDown}
         onPointerMove={board.onPointerMove}
         onPointerUp={board.endPointer}

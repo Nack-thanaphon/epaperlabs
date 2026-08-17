@@ -81,9 +81,6 @@ export function useSubmitHandwriting({
           scrollToBottom: true,
         })
       },
-      close: async () => {
-        // Display-mode / requestClose hangs ChatGPT's iframe. Stay on the board.
-      },
       onStage: (stage) => {
         setFailureText('')
         setStatus(stage)
@@ -98,7 +95,6 @@ export function useSubmitHandwriting({
           sending: error.code === 'timeout'
             ? 'รอการส่งเดิม — แตะตรวจอีกครั้ง'
             : 'ส่งเข้าแชตไม่สำเร็จ — งานเดิมยังอยู่',
-          closing: 'ส่งแล้ว — ดูคำตอบในแชต',
         }
         setFailureText(labels[error.stage])
         setStatus('failed')

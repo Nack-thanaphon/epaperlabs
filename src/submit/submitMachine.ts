@@ -4,7 +4,6 @@ export type SubmitStage =
   | 'uploading'
   | 'attaching'
   | 'sending'
-  | 'closing'
   | 'submitted'
 
 export type ActiveSubmitStage = Exclude<SubmitStage, 'idle' | 'submitted'>
@@ -31,7 +30,6 @@ interface SubmitAttempt {
   uploadPromise?: Promise<string>
   attachPromise?: Promise<void>
   sendPromise?: Promise<void>
-  closePromise?: Promise<void>
 }
 
 export interface SubmitControllerDependencies {
@@ -39,7 +37,6 @@ export interface SubmitControllerDependencies {
   upload: (blob: Blob, submissionId: string) => Promise<string>
   attach: (fileId: string, submissionId: string) => Promise<void> | void
   send: (submissionId: string) => Promise<void>
-  close: () => Promise<void>
   onStage: (stage: SubmitStage) => void
   onFailure?: (error: SubmitStageError) => void
   timeoutMs?: number
@@ -48,8 +45,6 @@ export interface SubmitControllerDependencies {
 export interface SubmitController {
   submit: () => Promise<boolean>
   retry: () => Promise<boolean>
-  returnToHost: () => Promise<boolean>
-  hasSubmitted: () => boolean
   isSubmitting: () => boolean
   reset: () => void
 }
@@ -98,9 +93,6 @@ export function createSubmitController(deps: SubmitControllerDependencies): Subm
     try {
       return await runStage(stage, () => operationPromise!)
     } catch (error) {
-      // Host bridge calls cannot be aborted. After a timeout, retain and await
-      // the original promise on Retry instead of issuing a duplicate side effect.
-      // A definite rejection is safe to replace on the next explicit Retry.
       if (error instanceof SubmitStageError && error.code === 'failed') {
         setPromise(undefined)
       }
@@ -152,10 +144,7 @@ export function createSubmitController(deps: SubmitControllerDependencies): Subm
         )
         attempt.sent = true
       }
-      // Do not call ChatGPT display-mode APIs after send. Those promises hang
-      // the iframe with no error. The learner stays on the board.
       deps.onStage('submitted')
-      returnToHostAvailable = true
       attempt = null
       return true
     } finally {
@@ -163,41 +152,13 @@ export function createSubmitController(deps: SubmitControllerDependencies): Subm
     }
   }
 
-  let returnInFlight = false
-  let returnPromise: Promise<void> | undefined
-  let returnToHostAvailable = false
-
-  const returnToHost = async () => {
-    if (!returnToHostAvailable || returnInFlight) return false
-    returnInFlight = true
-    try {
-      returnPromise ??= Promise.resolve().then(deps.close)
-      try {
-        await runStage('closing', () => returnPromise!)
-        returnToHostAvailable = false
-        return true
-      } catch (error) {
-        if (error instanceof SubmitStageError && error.code === 'failed') {
-          returnPromise = undefined
-        }
-        throw error
-      }
-    } finally {
-      returnInFlight = false
-    }
-  }
-
   return {
     submit: run,
     retry: run,
-    returnToHost,
-    hasSubmitted: () => returnToHostAvailable,
     isSubmitting: () => inFlight,
     reset: () => {
       if (inFlight) return
       attempt = null
-      returnToHostAvailable = false
-      returnPromise = undefined
       deps.onStage('idle')
     },
   }

@@ -6,7 +6,6 @@ interface DrawingBoardProps {
   tool: Tool
   writingReady: boolean
   inputLocked: boolean
-  parked?: boolean
   onPointerDown: (event: PointerEvent<HTMLCanvasElement>) => void
   onPointerMove: (event: PointerEvent<HTMLCanvasElement>) => void
   onPointerUp: (event: PointerEvent<HTMLCanvasElement>) => void
@@ -19,7 +18,6 @@ export function DrawingBoard({
   tool,
   writingReady,
   inputLocked,
-  parked = false,
   onPointerDown,
   onPointerMove,
   onPointerUp,
@@ -27,7 +25,7 @@ export function DrawingBoard({
   onGestureBlock,
 }: DrawingBoardProps) {
   return (
-    <div className={`boardWrap ${parked ? 'boardParked' : ''}`}>
+    <div className="boardWrap">
       <canvas
         ref={canvasRef}
         className={`paperCanvas tool-${tool} ${writingReady && !inputLocked ? '' : 'locked'}`}

@@ -20,7 +20,6 @@ export const STATUS_TEXT: Record<SubmitStatus, string> = {
   uploading: 'กำลังอัปโหลด…',
   attaching: 'กำลังแนบรูป…',
   sending: 'กำลังส่ง…',
-  closing: 'กำลังกลับแชต…',
   submitted: 'ส่งสำเร็จ ✓',
   failed: 'ลองส่งอีกครั้ง',
   empty: 'เขียนคำตอบก่อน',

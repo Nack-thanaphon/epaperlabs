@@ -9,7 +9,6 @@ function harness(overrides: Partial<Parameters<typeof createSubmitController>[0]
     upload: vi.fn(async () => { calls.push('upload'); return 'file-1' }),
     attach: vi.fn(async () => { calls.push('attach') }),
     send: vi.fn(async () => { calls.push('send') }),
-    close: vi.fn(async () => { calls.push('close') }),
     onStage: vi.fn((stage: SubmitStage) => stages.push(stage)),
     timeoutMs: 100,
     ...overrides,
@@ -18,38 +17,11 @@ function harness(overrides: Partial<Parameters<typeof createSubmitController>[0]
 }
 
 describe('submit controller', () => {
-  it('submits WITHOUT closing — board stays open for the learner', async () => {
+  it('submits and keeps the board open for the learner', async () => {
     const { controller, calls, stages } = harness()
     await expect(controller.submit()).resolves.toBe(true)
     expect(calls).toEqual(['export', 'upload', 'attach', 'send'])
     expect(stages).toEqual(['exporting', 'uploading', 'attaching', 'sending', 'submitted'])
-    expect(controller.hasSubmitted()).toBe(true)
-  })
-
-  it('returnToHost closes exactly once after an explicit user tap', async () => {
-    const { controller, deps } = harness()
-    await controller.submit()
-    await expect(controller.returnToHost()).resolves.toBe(true)
-    expect(deps.close).toHaveBeenCalledTimes(1)
-    expect(controller.hasSubmitted()).toBe(false)
-  })
-
-  it('returnToHost before submitting is a no-op', async () => {
-    const { controller, deps } = harness()
-    await expect(controller.returnToHost()).resolves.toBe(false)
-    expect(deps.close).not.toHaveBeenCalled()
-  })
-
-  it('retries close without sending a duplicate follow-up', async () => {
-    const close = vi.fn()
-      .mockRejectedValueOnce(new Error('close declined'))
-      .mockResolvedValueOnce(undefined)
-    const { controller, deps } = harness({ close })
-    await controller.submit()
-    await expect(controller.returnToHost()).rejects.toMatchObject({ stage: 'closing' })
-    await expect(controller.returnToHost()).resolves.toBe(true)
-    expect(deps.send).toHaveBeenCalledTimes(1)
-    expect(close).toHaveBeenCalledTimes(2)
   })
 
   it('rejects rapid duplicate submits synchronously', async () => {
@@ -98,7 +70,6 @@ describe('submit controller', () => {
     releaseSend()
     await expect(retry).resolves.toBe(true)
     expect(deps.send).toHaveBeenCalledTimes(1)
-    expect(deps.close).toHaveBeenCalledTimes(0)
   })
 
   it('reconciles a late upload instead of starting a duplicate upload', async () => {
@@ -126,20 +97,6 @@ describe('submit controller', () => {
     expect(deps.send).toHaveBeenCalledTimes(1)
   })
 
-  it('reconciles a late close without repeating the follow-up', async () => {
-    let releaseClose!: () => void
-    const pendingClose = new Promise<void>((resolve) => { releaseClose = resolve })
-    const close = vi.fn(() => pendingClose)
-    const { controller, deps } = harness({ close, timeoutMs: 5 })
-    await controller.submit()
-    await expect(controller.returnToHost()).rejects.toMatchObject({ stage: 'closing', code: 'timeout' })
-    const retry = controller.returnToHost()
-    releaseClose()
-    await expect(retry).resolves.toBe(true)
-    expect(deps.close).toHaveBeenCalledTimes(1)
-    expect(deps.send).toHaveBeenCalledTimes(1)
-  })
-
   it('completes 30 sequential one-tap submissions without duplicate stages', async () => {
     const { controller, deps } = harness()
     for (let attempt = 0; attempt < 30; attempt += 1) {
@@ -149,6 +106,5 @@ describe('submit controller', () => {
     expect(deps.upload).toHaveBeenCalledTimes(30)
     expect(deps.attach).toHaveBeenCalledTimes(30)
     expect(deps.send).toHaveBeenCalledTimes(30)
-    expect(deps.close).toHaveBeenCalledTimes(0)
   })
 })

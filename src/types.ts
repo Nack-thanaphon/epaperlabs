@@ -4,7 +4,6 @@ export type SubmitStatus =
   | 'uploading'
   | 'attaching'
   | 'sending'
-  | 'closing'
   | 'submitted'
   | 'failed'
   | 'empty'
@@ -35,7 +34,6 @@ declare global {
         imageIds?: string[]
       }) => void | Promise<void>
       sendFollowUpMessage?: (message: { prompt: string; scrollToBottom?: boolean }) => Promise<void>
-      requestClose?: () => Promise<void>
       requestDisplayMode?: (request: { mode: 'inline' | 'fullscreen' | 'picture-in-picture' }) => Promise<void>
       displayMode?: 'inline' | 'fullscreen' | 'picture-in-picture'
       safeArea?: {
