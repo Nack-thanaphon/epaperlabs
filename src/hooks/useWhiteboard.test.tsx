@@ -4,10 +4,18 @@ import type { PointerEvent as ReactPointerEvent } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { useWhiteboard } from './useWhiteboard'
 
-function pointer(pointerId: number, type: 'pointerdown' | 'pointermove', x: number, y: number) {
+function pointer(
+  pointerId: number,
+  type: 'pointerdown' | 'pointermove',
+  x: number,
+  y: number,
+  pointerType: 'pen' | 'mouse' = 'pen',
+) {
   return {
     pointerId,
-    pointerType: 'pen',
+    pointerType,
+    button: 0,
+    isPrimary: true,
     clientX: x,
     clientY: y,
     pressure: 0.6,
@@ -59,5 +67,23 @@ describe('useWhiteboard captured-pointer cancellation', () => {
     act(() => { result.current.onPointerDown(pointer(4, 'pointerdown', 40, 40)) })
     act(() => { result.current.onPointerMove(pointer(4, 'pointermove', 200, 160)) })
     expect(result.current.strokesRef.current).toHaveLength(0)
+  })
+
+  it('draws with a Mac mouse', () => {
+    const { result } = renderHook(() => useWhiteboard(true))
+    const canvas = document.createElement('canvas')
+    Object.defineProperties(canvas, {
+      getBoundingClientRect: { value: () => ({ left: 0, top: 0, width: 800, height: 600 }) },
+      getContext: { value: () => null },
+      setPointerCapture: { value: vi.fn() },
+      hasPointerCapture: { value: () => false },
+      releasePointerCapture: { value: vi.fn() },
+    })
+    result.current.canvasRef.current = canvas
+
+    act(() => { result.current.onPointerDown(pointer(1, 'pointerdown', 40, 40, 'mouse')) })
+    act(() => { result.current.onPointerMove(pointer(1, 'pointermove', 80, 80, 'mouse')) })
+    expect(result.current.strokesRef.current).toHaveLength(1)
+    expect(result.current.strokesRef.current[0].points.length).toBeGreaterThan(1)
   })
 })

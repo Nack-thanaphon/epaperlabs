@@ -33,7 +33,6 @@ export function DrawingBoard({
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerCancel}
-        onLostPointerCapture={onPointerCancel}
         onTouchStart={onGestureBlock}
         onTouchMove={onGestureBlock}
         onTouchEnd={onGestureBlock}

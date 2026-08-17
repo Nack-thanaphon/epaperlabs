@@ -22,43 +22,29 @@ function scaleCanvas(source: HTMLCanvasElement, scale: number): HTMLCanvasElemen
   return next
 }
 
+function asPngBlob(blob: Blob): Blob {
+  return blob.type === 'image/png' ? blob : blob.slice(0, blob.size, 'image/png')
+}
+
 export async function encodeCopyBlob(
   canvas: HTMLCanvasElement,
   maxBytes = COPY_MAX_BYTES
 ): Promise<Blob> {
   let current = canvas
-  let quality = 0.82
 
   for (let attempt = 0; attempt < 8; attempt += 1) {
-    const blob = await canvasToBlob(current, 'image/jpeg', quality)
+    const blob = await canvasToBlob(current, 'image/png')
     if (blob.size <= maxBytes) return blob
-    if (quality > 0.55) {
-      quality = Math.max(0.55, quality - 0.12)
-      continue
-    }
     current = scaleCanvas(current, 0.75)
-    quality = 0.78
   }
 
-  const last = await canvasToBlob(current, 'image/jpeg', 0.5)
+  const last = await canvasToBlob(current, 'image/png')
   if (last.size <= maxBytes) return last
   throw new Error('Copy image is still over 700KB')
 }
 
-export async function copyImageBlob(blob: Blob): Promise<'copied' | 'shared' | 'downloaded'> {
-  const type = blob.type || 'image/jpeg'
-  const extension = type === 'image/png' ? 'png' : 'jpg'
-
-  if (typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write) {
-    try {
-      await navigator.clipboard.write([new ClipboardItem({ [type]: blob })])
-      return 'copied'
-    } catch {
-      // iPad Chrome often blocks image clipboard writes.
-    }
-  }
-
-  const file = new File([blob], `papa-lasso.${extension}`, { type })
+async function shareOrDownload(blob: Blob): Promise<'shared' | 'downloaded'> {
+  const file = new File([blob], 'papa-lasso.png', { type: 'image/png' })
   const canShareFiles = typeof navigator.canShare === 'function'
     ? navigator.canShare({ files: [file] })
     : Boolean(navigator.share)
@@ -74,10 +60,41 @@ export async function copyImageBlob(blob: Blob): Promise<'copied' | 'shared' | '
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url
-  link.download = `papa-lasso.${extension}`
+  link.download = 'papa-lasso.png'
   document.body.append(link)
   link.click()
   link.remove()
   URL.revokeObjectURL(url)
   return 'downloaded'
+}
+
+export async function copyImage(
+  makeBlob: () => Blob | Promise<Blob>
+): Promise<'copied' | 'shared' | 'downloaded'> {
+  const blobPromise = Promise.resolve(makeBlob()).then(asPngBlob)
+
+  if (typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write) {
+    try {
+      await navigator.clipboard.write([
+        new ClipboardItem({ 'image/png': blobPromise }),
+      ])
+      return 'copied'
+    } catch {
+      try {
+        const blob = await blobPromise
+        await navigator.clipboard.write([
+          new ClipboardItem({ 'image/png': blob }),
+        ])
+        return 'copied'
+      } catch {
+        // iPad may still block image clipboard writes; fall through.
+      }
+    }
+  }
+
+  return shareOrDownload(await blobPromise)
+}
+
+export async function copyImageBlob(blob: Blob): Promise<'copied' | 'shared' | 'downloaded'> {
+  return copyImage(() => blob)
 }

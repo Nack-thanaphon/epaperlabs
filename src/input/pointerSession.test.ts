@@ -14,6 +14,20 @@ describe('PointerSession', () => {
     expect(session.drawingPointerId).toBe(1)
   })
 
+  it('draws with a mouse', () => {
+    const session = new PointerSession()
+    expect(session.down(point(1, 'mouse')).kind).toBe('startDrawing')
+    expect(session.move(point(1, 'mouse', 12, 8)).kind).toBe('draw')
+    expect(session.up(1).endedDrawing).toBe(true)
+  })
+
+  it('draws with trackpad-as-touch on fine pointers like a Mac', () => {
+    const session = new PointerSession(false)
+    expect(session.down(point(1, 'touch')).kind).toBe('startDrawing')
+    expect(session.move(point(1, 'touch', 12, 8)).kind).toBe('draw')
+    expect(session.up(1).endedDrawing).toBe(true)
+  })
+
   it('uses one finger to pan and never starts a touch stroke', () => {
     const session = new PointerSession()
     expect(session.down(point(10, 'touch')).kind).toBe('startPan')

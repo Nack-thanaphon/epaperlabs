@@ -4,7 +4,7 @@ import { BoardHistory, cloneStrokes } from '../history/boardHistory'
 import { PointerSession, type SessionPointer } from '../input/pointerSession'
 import { BLANK_PROBLEM_KEY, clearHostDraft, readHostDraft, writeHostDraft } from '../persistence/widgetDraft'
 import type { Point, Stroke, Tool, Viewport } from '../types'
-import { copyImageBlob } from '../utils/copyImage'
+import { copyImage } from '../utils/copyImage'
 import { canExportLasso, exportLassoBlob, rectPolygon } from '../utils/lasso'
 import { distance, midpoint, redrawPaper, screenToPaper, uid } from '../utils/drawing'
 
@@ -20,7 +20,9 @@ export function useWhiteboard(
   const strokesRef = useRef<Stroke[]>([])
   const historyRef = useRef(new BoardHistory())
   const gestureBeforeRef = useRef<Stroke[] | null>(null)
-  const pointerSession = useRef(new PointerSession())
+  const pointerSession = useRef(new PointerSession(
+    typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)')?.matches === true
+  ))
   const activeStrokeId = useRef<string | null>(null)
   const lassoPathRef = useRef<Point[]>([])
   const lassoOriginRef = useRef<Point | null>(null)
@@ -136,8 +138,7 @@ export function useWhiteboard(
       return
     }
     try {
-      const blob = await exportLassoBlob(strokesRef.current, polygon)
-      const result = await copyImageBlob(blob)
+      const result = await copyImage(() => exportLassoBlob(strokesRef.current, polygon))
       showLassoHint(result === 'copied' ? 'คัดลอกรูปแล้ว' : result === 'shared' ? 'แชร์รูปแล้ว' : 'บันทึกรูปแล้ว')
     } catch {
       showLassoHint('คัดลอกรูปไม่สำเร็จ')
@@ -218,6 +219,8 @@ export function useWhiteboard(
 
   const onPointerDown = useCallback((event: PointerEvent<HTMLCanvasElement>) => {
     if (!writingReady) return
+    if (event.isPrimary === false) return
+    if (event.pointerType === 'mouse' && event.button !== 0) return
     event.preventDefault()
     event.stopPropagation()
     const canvas = canvasRef.current

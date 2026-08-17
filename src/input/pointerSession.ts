@@ -25,6 +25,12 @@ export class PointerSession {
   private ownerType: string | null = null
   private inGesture = false
 
+  constructor(private readonly panWithTouch = true) {}
+
+  private isPanType(pointerType: string | null) {
+    return pointerType === 'touch' && this.panWithTouch
+  }
+
   get drawingPointerId() { return this.ownerId }
   get drawingPointerType() { return this.ownerType }
   get gestureActive() { return this.inGesture }
@@ -64,7 +70,7 @@ export class PointerSession {
     if (this.ownerId !== null) return { kind: 'ignore' }
     this.ownerId = pointer.id
     this.ownerType = pointer.pointerType
-    return pointer.pointerType === 'touch'
+    return this.isPanType(pointer.pointerType)
       ? { kind: 'startPan', pointer }
       : { kind: 'startDrawing', pointer }
   }
@@ -81,13 +87,13 @@ export class PointerSession {
     }
 
     if (pointer.id !== this.ownerId) return { kind: 'ignore' }
-    return this.ownerType === 'touch'
+    return this.isPanType(this.ownerType)
       ? { kind: 'pan', pointer }
       : { kind: 'draw', pointer }
   }
 
   up(pointerId: number): PointerEndAction {
-    const endedDrawing = pointerId === this.ownerId && this.ownerType !== 'touch'
+    const endedDrawing = pointerId === this.ownerId && !this.isPanType(this.ownerType)
     if (pointerId === this.ownerId) {
       this.ownerId = null
       this.ownerType = null
