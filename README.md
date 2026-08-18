@@ -9,6 +9,11 @@ https://epaperlabs.vercel.app
 → paste into the ChatGPT box
 ```
 
+Install as a PWA (Home Screen app):
+
+- **iPad/iPhone:** Safari → Share → Add to Home Screen
+- **Mac:** Chrome/Edge → install icon in the address bar, or Safari → File → Add to Dock
+
 ```bash
 npm test
 npm run dev
