@@ -12,8 +12,8 @@ export default defineConfig({
       includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
       manifest: {
         id: '/',
-        name: 'Papa',
-        short_name: 'Papa',
+        name: 'PaperBoard',
+        short_name: 'PaperBoard',
         description: 'กระดานลายมือ — เขียน ล้อม คัดลอกรูป ไปวางใน ChatGPT',
         lang: 'th',
         dir: 'ltr',

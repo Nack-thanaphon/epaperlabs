@@ -1,9 +1,10 @@
 import { MAX_DRAFT_BYTES } from '../constants'
 import type { Stroke } from '../types'
 
-export const DRAFT_SOURCE = 'papa-handwriting-board'
+export const DRAFT_SOURCE = 'paperboard-handwriting-board'
 export const BLANK_PROBLEM_KEY = 'blank'
-const STORAGE_KEY = 'papa-draft'
+const STORAGE_KEY = 'paperboard-draft'
+const LEGACY_STORAGE_KEY = 'papa-draft'
 
 export function problemKey(problem: string) {
   return problem.trim() || BLANK_PROBLEM_KEY
@@ -64,29 +65,38 @@ export function buildDraftPayload(strokes: Stroke[], key = BLANK_PROBLEM_KEY): D
   return payload
 }
 
+function readDraftFromStorage(storageKey: string, key: string): Stroke[] | null {
+  const raw = localStorage.getItem(storageKey)
+  if (!raw) return null
+  const parsed = parseDraft(JSON.parse(raw))
+  if (!parsed) return null
+  if (parsed.problemKey && parsed.problemKey !== key) return null
+  if (!parsed.problemKey && key !== BLANK_PROBLEM_KEY) return null
+  return parsed.strokes
+}
+
 export function readHostDraft(key: string): Stroke[] | null {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return null
-    const parsed = parseDraft(JSON.parse(raw))
-    if (!parsed) return null
-    if (parsed.problemKey && parsed.problemKey !== key) return null
-    if (!parsed.problemKey && key !== BLANK_PROBLEM_KEY) return null
-    return parsed.strokes
+    return readDraftFromStorage(STORAGE_KEY, key) ?? readDraftFromStorage(LEGACY_STORAGE_KEY, key)
   } catch {
     return null
   }
 }
 
 export async function writeHostDraft(strokes: Stroke[], key: string): Promise<void> {
-  const papaDraft = buildDraftPayload(strokes, key)
-  if (!papaDraft) {
-    if (strokes.length === 0) localStorage.removeItem(STORAGE_KEY)
+  const draft = buildDraftPayload(strokes, key)
+  if (!draft) {
+    if (strokes.length === 0) {
+      localStorage.removeItem(STORAGE_KEY)
+      localStorage.removeItem(LEGACY_STORAGE_KEY)
+    }
     return
   }
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(papaDraft))
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(draft))
+  localStorage.removeItem(LEGACY_STORAGE_KEY)
 }
 
 export async function clearHostDraft(): Promise<void> {
   localStorage.removeItem(STORAGE_KEY)
+  localStorage.removeItem(LEGACY_STORAGE_KEY)
 }

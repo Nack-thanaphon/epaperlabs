@@ -44,7 +44,7 @@ export async function encodeCopyBlob(
 }
 
 async function shareOrDownload(blob: Blob): Promise<'shared' | 'downloaded'> {
-  const file = new File([blob], 'papa-lasso.png', { type: 'image/png' })
+  const file = new File([blob], 'paperboard-lasso.png', { type: 'image/png' })
   const canShareFiles = typeof navigator.canShare === 'function'
     ? navigator.canShare({ files: [file] })
     : Boolean(navigator.share)
@@ -60,7 +60,7 @@ async function shareOrDownload(blob: Blob): Promise<'shared' | 'downloaded'> {
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url
-  link.download = 'papa-lasso.png'
+  link.download = 'paperboard-lasso.png'
   document.body.append(link)
   link.click()
   link.remove()

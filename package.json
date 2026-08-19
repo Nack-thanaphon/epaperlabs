@@ -1,7 +1,7 @@
 {
-  "name": "epaperlabs",
+  "name": "paperboard",
   "version": "0.1.0",
-  "description": "Papa — standalone handwriting board",
+  "description": "PaperBoard — standalone handwriting board",
   "type": "module",
   "scripts": {
     "dev": "vite --host",

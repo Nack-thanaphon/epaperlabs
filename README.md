@@ -1,4 +1,4 @@
-# Papa
+# PaperBoard
 
 Standalone handwriting board. Open in the browser, write, lasso-copy a PNG, paste into ChatGPT.
 
