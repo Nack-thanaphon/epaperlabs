@@ -28,6 +28,7 @@ function App() {
         canUndo={board.canUndo}
         canRedo={board.canRedo}
         hint={board.lassoHint}
+        zoomPercent={board.zoomPercent}
         onToolChange={board.setTool}
         onColorChange={board.setColor}
         onSizeChange={board.setSize}

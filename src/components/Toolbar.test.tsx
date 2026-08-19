@@ -13,6 +13,7 @@ describe('Toolbar', () => {
         canUndo
         canRedo
         hint=""
+        zoomPercent={75}
         onToolChange={vi.fn()}
         onColorChange={vi.fn()}
         onSizeChange={vi.fn()}
@@ -27,6 +28,7 @@ describe('Toolbar', () => {
     expect(screen.getByRole('button', { name: 'Rect' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Undo' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Clear' })).toBeTruthy()
+    expect(screen.getByLabelText('Zoom').textContent).toBe('75%')
     expect(screen.queryByRole('button', { name: /Submit/ })).toBeNull()
     expect(screen.queryByText('−')).toBeNull()
   })

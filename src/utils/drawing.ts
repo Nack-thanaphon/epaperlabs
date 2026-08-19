@@ -10,6 +10,10 @@ function average(a: Point, b: Point): Point {
   return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, pressure: (a.pressure + b.pressure) / 2 }
 }
 
+export function zoomPercent(scale: number) {
+  return Math.round(scale * 100)
+}
+
 export function getSvgPathFromStroke(points: number[][]) {
   if (points.length < 4) return ''
   const len = points.length
@@ -33,13 +37,16 @@ export function getSvgPathFromStroke(points: number[][]) {
   return result
 }
 
-export function screenToPaper(canvas: HTMLCanvasElement, viewport: Viewport, clientX: number, clientY: number): Point {
-  const rect = canvas.getBoundingClientRect()
+export function screenToPaperFromRect(rect: DOMRectReadOnly, viewport: Viewport, clientX: number, clientY: number): Point {
   return {
     x: (clientX - rect.left - viewport.x) / viewport.scale,
     y: (clientY - rect.top - viewport.y) / viewport.scale,
     pressure: 0.5,
   }
+}
+
+export function screenToPaper(canvas: HTMLCanvasElement, viewport: Viewport, clientX: number, clientY: number): Point {
+  return screenToPaperFromRect(canvas.getBoundingClientRect(), viewport, clientX, clientY)
 }
 
 export function distance(a: { x: number; y: number }, b: { x: number; y: number }) {
@@ -50,15 +57,31 @@ export function midpoint(a: { x: number; y: number }, b: { x: number; y: number 
   return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }
 }
 
-export function drawStrokePath(ctx: CanvasRenderingContext2D, stroke: Stroke) {
-  if (stroke.points.length === 0) return
-
+function drawStrokeFallback(ctx: CanvasRenderingContext2D, stroke: Stroke) {
+  ctx.strokeStyle = stroke.color
+  ctx.fillStyle = stroke.color
+  ctx.lineCap = 'round'
+  ctx.lineJoin = 'round'
+  ctx.lineWidth = stroke.size
   if (stroke.points.length === 1) {
     const p = stroke.points[0]
-    ctx.fillStyle = stroke.color
     ctx.beginPath()
     ctx.arc(p.x, p.y, stroke.size / 2, 0, Math.PI * 2)
     ctx.fill()
+    return
+  }
+  ctx.beginPath()
+  ctx.moveTo(stroke.points[0].x, stroke.points[0].y)
+  for (let i = 1; i < stroke.points.length; i += 1) {
+    ctx.lineTo(stroke.points[i].x, stroke.points[i].y)
+  }
+  ctx.stroke()
+}
+
+export function drawStrokePath(ctx: CanvasRenderingContext2D, stroke: Stroke) {
+  if (stroke.points.length === 0) return
+  if (stroke.points.length < 3) {
+    drawStrokeFallback(ctx, stroke)
     return
   }
 
@@ -66,19 +89,31 @@ export function drawStrokePath(ctx: CanvasRenderingContext2D, stroke: Stroke) {
     stroke.points.map((p) => [p.x, p.y, p.pressure]),
     {
       size: stroke.size,
-      thinning: 0.4,
-      smoothing: 0.65,
-      streamline: 0.55,
-      simulatePressure: true,
+      thinning: 0.5,
+      smoothing: 0.5,
+      streamline: 0.5,
+      simulatePressure: false,
       start: { taper: 0, cap: true },
-      end: { taper: 8, cap: true },
+      end: { taper: 0, cap: true },
     }
   )
 
   const path = getSvgPathFromStroke(outline)
-  if (!path) return
+  if (!path) {
+    drawStrokeFallback(ctx, stroke)
+    return
+  }
   ctx.fillStyle = stroke.color
   ctx.fill(new Path2D(path))
+}
+
+export interface PaperCache {
+  layer: HTMLCanvasElement | null
+  key: string
+}
+
+export function createPaperCache(): PaperCache {
+  return { layer: null, key: '' }
 }
 
 function drawPaperGrid(ctx: CanvasRenderingContext2D) {
@@ -98,14 +133,45 @@ function drawPaperGrid(ctx: CanvasRenderingContext2D) {
   }
 }
 
+function applyPaperTransform(ctx: CanvasRenderingContext2D, dpr: number, viewport: Viewport) {
+  ctx.setTransform(
+    dpr * viewport.scale,
+    0,
+    0,
+    dpr * viewport.scale,
+    dpr * viewport.x,
+    dpr * viewport.y
+  )
+}
+
+function committedKey(width: number, height: number, viewport: Viewport, strokes: Stroke[]) {
+  return `${width}x${height}:${viewport.scale}:${viewport.x}:${viewport.y}:${strokes.length}:${strokes[0]?.id ?? ''}:${strokes.at(-1)?.id ?? ''}`
+}
+
+function paintStrokes(
+  ctx: CanvasRenderingContext2D,
+  dpr: number,
+  viewport: Viewport,
+  width: number,
+  height: number,
+  strokes: Stroke[],
+) {
+  ctx.setTransform(1, 0, 0, 1, 0, 0)
+  ctx.fillStyle = '#ffffff'
+  ctx.fillRect(0, 0, width, height)
+  applyPaperTransform(ctx, dpr, viewport)
+  for (const stroke of strokes) drawStrokePath(ctx, stroke)
+}
+
 export function redrawPaper(
   canvas: HTMLCanvasElement,
   viewport: Viewport,
   strokes: Stroke[],
   lassoPath: Point[] = [],
-  predicted: Point[] = [],
+  cache?: PaperCache,
+  liveStrokeId: string | null = null,
 ) {
-  const ctx = canvas.getContext('2d')
+  const ctx = canvas.getContext('2d', { alpha: false })
   if (!ctx) return
 
   const rect = canvas.getBoundingClientRect()
@@ -117,28 +183,30 @@ export function redrawPaper(
     canvas.height = height
   }
 
-  ctx.setTransform(1, 0, 0, 1, 0, 0)
-  ctx.clearRect(0, 0, width, height)
-  ctx.fillStyle = '#ffffff'
-  ctx.fillRect(0, 0, width, height)
+  const live = liveStrokeId && strokes.at(-1)?.id === liveStrokeId ? strokes.at(-1) : null
+  const committed = live ? strokes.slice(0, -1) : strokes
 
-  ctx.setTransform(
-    dpr * viewport.scale,
-    0,
-    0,
-    dpr * viewport.scale,
-    dpr * viewport.x,
-    dpr * viewport.y
-  )
-
-  const liveId = predicted.length > 0 ? strokes.at(-1)?.id : null
-  for (const stroke of strokes) {
-    if (stroke.id === liveId) {
-      drawStrokePath(ctx, { ...stroke, points: [...stroke.points, ...predicted] })
-    } else {
-      drawStrokePath(ctx, stroke)
+  if (cache) {
+    const key = committedKey(width, height, viewport, committed)
+    if (!cache.layer) cache.layer = document.createElement('canvas')
+    if (cache.layer.width !== width || cache.layer.height !== height) {
+      cache.layer.width = width
+      cache.layer.height = height
+      cache.key = ''
     }
+    if (cache.key !== key) {
+      cache.key = key
+      const layerCtx = cache.layer.getContext('2d', { alpha: false })
+      if (layerCtx) paintStrokes(layerCtx, dpr, viewport, width, height, committed)
+    }
+    ctx.setTransform(1, 0, 0, 1, 0, 0)
+    ctx.drawImage(cache.layer, 0, 0)
+    applyPaperTransform(ctx, dpr, viewport)
+    if (live) drawStrokePath(ctx, live)
+  } else {
+    paintStrokes(ctx, dpr, viewport, width, height, strokes)
   }
+
   if (lassoPath.length >= 2) {
     ctx.save()
     ctx.strokeStyle = '#2563eb'

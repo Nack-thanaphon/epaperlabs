@@ -161,8 +161,16 @@ button {
   box-shadow: 0 0 0 2px #0f172a;
 }
 
-.lassoHint {
+.zoomLabel {
   margin-left: auto;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.lassoHint {
   color: #0369a1;
   font-size: 12px;
   font-weight: 600;

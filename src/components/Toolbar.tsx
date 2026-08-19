@@ -8,6 +8,7 @@ interface ToolbarProps {
   canUndo: boolean
   canRedo: boolean
   hint: string
+  zoomPercent: number
   onToolChange: (tool: Tool) => void
   onColorChange: (color: string) => void
   onSizeChange: (size: number) => void
@@ -23,6 +24,7 @@ export function Toolbar({
   canUndo,
   canRedo,
   hint,
+  zoomPercent,
   onToolChange,
   onColorChange,
   onSizeChange,
@@ -63,6 +65,7 @@ export function Toolbar({
           />
         ))}
       </div>
+      <span className="zoomLabel" aria-label="Zoom">{zoomPercent}%</span>
       {hint && <span className="lassoHint">{hint}</span>}
     </div>
   )

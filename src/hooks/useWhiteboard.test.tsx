@@ -88,7 +88,7 @@ describe('useWhiteboard captured-pointer cancellation', () => {
     expect(result.current.strokesRef.current[0].points.length).toBeGreaterThan(1)
   })
 
-  it('zooms when a second non-primary finger pinches', () => {
+  it('zooms when a second non-primary finger pinches', async () => {
     const { result } = renderHook(() => useWhiteboard(true))
     const canvas = document.createElement('canvas')
     Object.defineProperties(canvas, {
@@ -103,7 +103,11 @@ describe('useWhiteboard captured-pointer cancellation', () => {
     act(() => { result.current.onPointerDown(pointer(1, 'pointerdown', 40, 40, 'touch', true)) })
     act(() => { result.current.onPointerDown(pointer(2, 'pointerdown', 140, 40, 'touch', false)) })
     act(() => { result.current.onPointerMove(pointer(2, 'pointermove', 240, 40, 'touch', false)) })
+    await act(async () => {
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+    })
     expect(result.current.viewport.scale).toBeGreaterThan(0.75)
+    expect(result.current.zoomPercent).toBeGreaterThan(75)
   })
 
   it('returns to draw if lasso or rect stays still for 4 seconds', () => {

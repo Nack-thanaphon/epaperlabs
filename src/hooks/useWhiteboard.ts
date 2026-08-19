@@ -6,7 +6,7 @@ import { BLANK_PROBLEM_KEY, readHostDraft, writeHostDraft } from '../persistence
 import type { Point, Stroke, Tool, Viewport } from '../types'
 import { copyImage } from '../utils/copyImage'
 import { canExportLasso, exportLassoBlob, rectPolygon } from '../utils/lasso'
-import { distance, midpoint, redrawPaper, screenToPaper, uid } from '../utils/drawing'
+import { createPaperCache, distance, midpoint, redrawPaper, screenToPaperFromRect, uid, zoomPercent } from '../utils/drawing'
 
 export function useWhiteboard(
   writingReady: boolean,
@@ -29,8 +29,10 @@ export function useWhiteboard(
   const lassoHintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const rafRef = useRef<number | null>(null)
   const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const predictedRef = useRef<Point[]>([])
   const safariPinchRef = useRef(false)
+  const paperCacheRef = useRef(createPaperCache())
+  const canvasRectRef = useRef<DOMRect | null>(null)
+  const zoomRafRef = useRef<number | null>(null)
   const viewportRef = useRef<Viewport>({ scale: 0.75, x: 32, y: 32 })
   const problemKey = options?.problemKey ?? BLANK_PROBLEM_KEY
   const problemKeyRef = useRef(problemKey)
@@ -62,7 +64,14 @@ export function useWhiteboard(
   const paint = useCallback(() => {
     const canvas = canvasRef.current
     if (!canvas) return
-    redrawPaper(canvas, viewportRef.current, strokesRef.current, lassoPathRef.current, predictedRef.current)
+    redrawPaper(
+      canvas,
+      viewportRef.current,
+      strokesRef.current,
+      lassoPathRef.current,
+      paperCacheRef.current,
+      activeStrokeId.current,
+    )
     onCanvasReadyRef.current?.()
   }, [])
 
@@ -84,9 +93,13 @@ export function useWhiteboard(
   const setViewport = useCallback((next: Viewport | ((current: Viewport) => Viewport)) => {
     const resolved = typeof next === 'function' ? next(viewportRef.current) : next
     viewportRef.current = resolved
-    setViewportState(resolved)
-    paint()
-  }, [paint])
+    bumpRevision()
+    if (zoomRafRef.current != null) return
+    zoomRafRef.current = requestAnimationFrame(() => {
+      zoomRafRef.current = null
+      setViewportState({ ...viewportRef.current })
+    })
+  }, [bumpRevision])
 
   useEffect(() => {
     paint()
@@ -94,7 +107,10 @@ export function useWhiteboard(
 
   useEffect(() => {
     const canvas = canvasRef.current
-    const onResize = () => paint()
+    const onResize = () => {
+      canvasRectRef.current = canvas?.getBoundingClientRect() ?? null
+      paint()
+    }
     window.addEventListener('resize', onResize)
     const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(onResize)
     if (canvas && observer) observer.observe(canvas)
@@ -186,7 +202,7 @@ export function useWhiteboard(
     lassoOriginRef.current = null
     pinchStart.current = null
     gestureBeforeRef.current = null
-    predictedRef.current = []
+    activeStrokeId.current = null
     paint()
   }, [paint, problemKey, syncHistoryState])
 
@@ -309,13 +325,18 @@ export function useWhiteboard(
   }, [bumpRevision, size])
 
   const eventPointer = useCallback((canvas: HTMLCanvasElement, event: PointerEvent<HTMLCanvasElement>): SessionPointer => {
-    const rect = canvas.getBoundingClientRect()
+    const rect = canvasRectRef.current ?? canvas.getBoundingClientRect()
     return {
       id: event.pointerId,
       x: event.clientX - rect.left,
       y: event.clientY - rect.top,
       pointerType: event.pointerType,
     }
+  }, [])
+
+  const toPaper = useCallback((canvas: HTMLCanvasElement, clientX: number, clientY: number) => {
+    const rect = canvasRectRef.current ?? canvas.getBoundingClientRect()
+    return screenToPaperFromRect(rect, viewportRef.current, clientX, clientY)
   }, [])
 
   const beginPinch = useCallback((pointers: [SessionPointer, SessionPointer]) => {
@@ -342,6 +363,7 @@ export function useWhiteboard(
     event.stopPropagation()
     const canvas = canvasRef.current
     if (!canvas) return
+    canvasRectRef.current = canvas.getBoundingClientRect()
     try {
       canvas.setPointerCapture?.(event.pointerId)
     } catch {
@@ -359,7 +381,7 @@ export function useWhiteboard(
 
     if (tool !== 'pan' && tool !== 'lasso' && tool !== 'rect') gestureBeforeRef.current = cloneStrokes(strokesRef.current)
 
-    const point = screenToPaper(canvas, viewportRef.current, event.clientX, event.clientY)
+    const point = toPaper(canvas, event.clientX, event.clientY)
     point.pressure = event.pressure && event.pressure > 0 ? event.pressure : 0.55
 
     if (tool === 'eraser') {
@@ -380,7 +402,7 @@ export function useWhiteboard(
     activeStrokeId.current = stroke.id
     onFirstInkRef.current?.()
     bumpRevision()
-  }, [armSelectIdle, beginPinch, bumpRevision, cancelTouchStroke, color, eraseAt, eventPointer, size, tool, writingReady])
+  }, [armSelectIdle, beginPinch, bumpRevision, cancelTouchStroke, color, eraseAt, eventPointer, size, toPaper, tool, writingReady])
 
   const onPointerMove = useCallback((event: PointerEvent<HTMLCanvasElement>) => {
     if (!writingReady) return
@@ -413,7 +435,7 @@ export function useWhiteboard(
 
     if (tool === 'lasso' || tool === 'rect') {
       armSelectIdle()
-      const point = screenToPaper(canvas, viewportRef.current, event.clientX, event.clientY)
+      const point = toPaper(canvas, event.clientX, event.clientY)
       if (tool === 'rect') {
         const origin = lassoOriginRef.current
         if (!origin) return
@@ -436,23 +458,16 @@ export function useWhiteboard(
 
     const nativeEvents = event.nativeEvent?.getCoalescedEvents?.() ?? [event.nativeEvent ?? event]
     for (const native of nativeEvents) {
-      const point = screenToPaper(canvas, viewportRef.current, native.clientX, native.clientY)
+      const point = toPaper(canvas, native.clientX, native.clientY)
       point.pressure = native.pressure && native.pressure > 0 ? native.pressure : 0.55
       if (tool === 'eraser') {
         eraseAt(point)
       } else {
-        const prev = last.points.at(-1)
-        if (!prev || distance(prev, point) >= 0.35) last.points.push(point)
+        last.points.push(point)
       }
     }
-    const predictedEvents = event.nativeEvent?.getPredictedEvents?.() ?? []
-    predictedRef.current = predictedEvents.map((native) => {
-      const point = screenToPaper(canvas, viewportRef.current, native.clientX, native.clientY)
-      point.pressure = native.pressure && native.pressure > 0 ? native.pressure : 0.55
-      return point
-    })
     if (tool !== 'eraser') bumpRevision()
-  }, [armSelectIdle, bumpRevision, eraseAt, eventPointer, setViewport, tool, writingReady])
+  }, [armSelectIdle, bumpRevision, eraseAt, eventPointer, setViewport, toPaper, tool, writingReady])
 
   const finishPointer = useCallback((event: PointerEvent<HTMLCanvasElement>, cancelled: boolean) => {
     event.preventDefault()
@@ -465,7 +480,6 @@ export function useWhiteboard(
     }
 
     const action = pointerSession.current.up(event.pointerId)
-    predictedRef.current = []
     if (action.endedDrawing) {
       if (tool === 'lasso' || tool === 'rect') {
         const polygon = lassoPathRef.current
@@ -543,6 +557,7 @@ export function useWhiteboard(
     size,
     setSize,
     viewport,
+    zoomPercent: zoomPercent(viewport.scale),
     onPointerDown,
     onPointerMove,
     endPointer,
