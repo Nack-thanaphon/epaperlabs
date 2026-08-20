@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type PointerEvent, type TouchEvent } from 'react'
-import { COLORS, DEFAULT_PEN_SIZE, DRAFT_PERSIST_MS, MAX_SCALE, MIN_SCALE, SELECT_IDLE_MS } from '../constants'
+import { COLORS, DEFAULT_PEN_SIZE, DEFAULT_SCALE, DRAFT_PERSIST_MS, MAX_SCALE, MIN_SCALE, SELECT_IDLE_MS } from '../constants'
 import { BoardHistory, cloneStrokes } from '../history/boardHistory'
 import { PointerSession, type SessionPointer } from '../input/pointerSession'
 import { BLANK_PROBLEM_KEY, readHostDraft, writeHostDraft } from '../persistence/widgetDraft'
@@ -33,7 +33,7 @@ export function useWhiteboard(
   const paperCacheRef = useRef(createPaperCache())
   const canvasRectRef = useRef<DOMRect | null>(null)
   const zoomRafRef = useRef<number | null>(null)
-  const viewportRef = useRef<Viewport>({ scale: 0.75, x: 32, y: 32 })
+  const viewportRef = useRef<Viewport>({ scale: DEFAULT_SCALE, x: 32, y: 32 })
   const problemKey = options?.problemKey ?? BLANK_PROBLEM_KEY
   const problemKeyRef = useRef(problemKey)
   problemKeyRef.current = problemKey

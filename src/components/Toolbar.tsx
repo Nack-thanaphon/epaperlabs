@@ -1,5 +1,14 @@
 import { COLORS, MAX_PEN_SIZE, MIN_PEN_SIZE } from '../constants'
 import type { Tool } from '../types'
+import {
+  ClearIcon,
+  DrawIcon,
+  EraseIcon,
+  LassoIcon,
+  RectIcon,
+  RedoIcon,
+  UndoIcon,
+} from './ToolIcons'
 
 interface ToolbarProps {
   tool: Tool
@@ -34,13 +43,27 @@ export function Toolbar({
 }: ToolbarProps) {
   return (
     <div className="toolbar" role="toolbar" aria-label="Drawing tools">
-      <button className={tool === 'pen' ? 'active' : ''} onClick={() => onToolChange('pen')}>Draw</button>
-      <button className={tool === 'eraser' ? 'active' : ''} onClick={() => onToolChange('eraser')}>Erase</button>
-      <button className={tool === 'lasso' ? 'active' : ''} onClick={() => onToolChange('lasso')}>Lasso</button>
-      <button className={tool === 'rect' ? 'active' : ''} onClick={() => onToolChange('rect')}>Rect</button>
-      <button disabled={!canUndo} onClick={onUndo}>Undo</button>
-      <button disabled={!canRedo} onClick={onRedo}>Redo</button>
-      <button onClick={onClear}>Clear</button>
+      <button className={tool === 'pen' ? 'active' : ''} aria-label="Draw" onClick={() => onToolChange('pen')}>
+        <DrawIcon />
+      </button>
+      <button className={tool === 'eraser' ? 'active' : ''} aria-label="Erase" onClick={() => onToolChange('eraser')}>
+        <EraseIcon />
+      </button>
+      <button className={tool === 'lasso' ? 'active' : ''} aria-label="Lasso" onClick={() => onToolChange('lasso')}>
+        <LassoIcon />
+      </button>
+      <button className={tool === 'rect' ? 'active' : ''} aria-label="Rect" onClick={() => onToolChange('rect')}>
+        <RectIcon />
+      </button>
+      <button disabled={!canUndo} aria-label="Undo" onClick={onUndo}>
+        <UndoIcon />
+      </button>
+      <button disabled={!canRedo} aria-label="Redo" onClick={onRedo}>
+        <RedoIcon />
+      </button>
+      <button aria-label="Clear" onClick={onClear}>
+        <ClearIcon />
+      </button>
       <label className="sizeControl">
         Size
         <input

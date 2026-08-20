@@ -9,7 +9,7 @@ describe('Toolbar', () => {
       <Toolbar
         tool="pen"
         color="#111827"
-        size={16}
+        size={2}
         canUndo
         canRedo
         hint=""
@@ -24,10 +24,15 @@ describe('Toolbar', () => {
     )
 
     expect(screen.getByRole('button', { name: 'Draw' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Erase' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Lasso' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Rect' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Undo' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Redo' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Clear' })).toBeTruthy()
+    expect(document.querySelectorAll('.toolIcon')).toHaveLength(7)
+    expect(screen.queryByText('Draw')).toBeNull()
+    expect(screen.queryByText('Clear')).toBeNull()
     expect(screen.getByLabelText('Zoom').textContent).toBe('75%')
     expect(screen.queryByRole('button', { name: /Submit/ })).toBeNull()
     expect(screen.queryByText('−')).toBeNull()

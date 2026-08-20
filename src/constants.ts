@@ -1,7 +1,8 @@
 export const COLORS = ['#111827', '#2563eb', '#dc2626']
-export const DEFAULT_PEN_SIZE = 16
 export const MIN_PEN_SIZE = 2
 export const MAX_PEN_SIZE = 32
+export const DEFAULT_PEN_SIZE = MIN_PEN_SIZE
+export const DEFAULT_SCALE = 0.75
 export const PAPER_WIDTH = 2400
 export const PAPER_HEIGHT = 1600
 export const EXPORT_SCALE = 1

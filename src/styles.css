@@ -101,16 +101,25 @@ button {
 }
 
 .toolbar button {
+  display: inline-flex;
   flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
   min-height: 40px;
-  padding: 8px 10px;
+  padding: 0;
   border: 0;
   border-radius: 8px;
   background: transparent;
   color: #334155;
-  font-size: 14px;
-  font-weight: 600;
   cursor: pointer;
+}
+
+.toolIcon {
+  flex: 0 0 auto;
+  display: block;
+  width: 18px;
+  height: 18px;
 }
 
 .toolbar button.active {
