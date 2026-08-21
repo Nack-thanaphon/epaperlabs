@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { EXPORT_MAX_EDGE, PAPER_HEIGHT, PAPER_WIDTH } from '../constants'
-import { contentBounds, exportFrame, zoomPercent } from './drawing'
+import { contentBounds, exportFrame, freehandOptions, minPointSpacing, traceQuadraticStroke, zoomPercent } from './drawing'
 import type { Stroke } from '../types'
 
 const stroke = (points: Array<[number, number]>, size = 8): Stroke => ({
@@ -31,5 +31,35 @@ describe('zoomPercent', () => {
     expect(zoomPercent(0.75)).toBe(75)
     expect(zoomPercent(1)).toBe(100)
     expect(zoomPercent(1.33)).toBe(133)
+  })
+})
+
+describe('stroke smoothness helpers', () => {
+  it('tightens point spacing as zoom increases', () => {
+    expect(minPointSpacing(3)).toBeLessThan(minPointSpacing(0.75))
+    expect(minPointSpacing(3)).toBeCloseTo(0.65 / 3, 5)
+  })
+
+  it('boosts freehand smoothing when zoomed in', () => {
+    const normal = freehandOptions(0.75)
+    const zoomed = freehandOptions(3)
+    expect(zoomed.smoothing).toBeGreaterThan(normal.smoothing)
+    expect(zoomed.streamline).toBeGreaterThan(normal.streamline)
+  })
+
+  it('builds a quadratic path for live curved ink', () => {
+    const calls: string[] = []
+    const ctx = {
+      beginPath: () => calls.push('begin'),
+      moveTo: () => calls.push('move'),
+      lineTo: () => calls.push('line'),
+      quadraticCurveTo: () => calls.push('quad'),
+    }
+    expect(traceQuadraticStroke(ctx, [
+      { x: 0, y: 0, pressure: 0.5 },
+      { x: 10, y: 0, pressure: 0.5 },
+      { x: 20, y: 10, pressure: 0.5 },
+    ])).toBe(true)
+    expect(calls).toEqual(['begin', 'move', 'quad', 'line'])
   })
 })

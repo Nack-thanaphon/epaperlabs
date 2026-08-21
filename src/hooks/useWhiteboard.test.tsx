@@ -88,6 +88,30 @@ describe('useWhiteboard captured-pointer cancellation', () => {
     expect(result.current.strokesRef.current[0].points.length).toBeGreaterThan(1)
   })
 
+  it('erases while dragging, not only on the first tap', () => {
+    const { result } = renderHook(() => useWhiteboard(true))
+    const canvas = document.createElement('canvas')
+    Object.defineProperties(canvas, {
+      getBoundingClientRect: { value: () => ({ left: 0, top: 0, width: 800, height: 600 }) },
+      getContext: { value: () => null },
+      setPointerCapture: { value: vi.fn() },
+      hasPointerCapture: { value: () => false },
+      releasePointerCapture: { value: vi.fn() },
+    })
+    result.current.canvasRef.current = canvas
+
+    act(() => { result.current.onPointerDown(pointer(1, 'pointerdown', 300, 40, 'mouse')) })
+    act(() => { result.current.onPointerMove(pointer(1, 'pointermove', 340, 40, 'mouse')) })
+    act(() => { result.current.endPointer(pointer(1, 'pointerdown', 340, 40, 'mouse')) })
+    expect(result.current.strokesRef.current).toHaveLength(1)
+
+    act(() => { result.current.setTool('eraser') })
+    act(() => { result.current.onPointerDown(pointer(2, 'pointerdown', 40, 40, 'mouse')) })
+    expect(result.current.strokesRef.current).toHaveLength(1)
+    act(() => { result.current.onPointerMove(pointer(2, 'pointermove', 320, 40, 'mouse')) })
+    expect(result.current.strokesRef.current).toHaveLength(0)
+  })
+
   it('zooms when a second non-primary finger pinches', async () => {
     const { result } = renderHook(() => useWhiteboard(true))
     const canvas = document.createElement('canvas')

@@ -6,7 +6,7 @@ import { BLANK_PROBLEM_KEY, readHostDraft, writeHostDraft } from '../persistence
 import type { Point, Stroke, Tool, Viewport } from '../types'
 import { copyImage } from '../utils/copyImage'
 import { canExportLasso, exportLassoBlob, rectPolygon } from '../utils/lasso'
-import { createPaperCache, distance, midpoint, redrawPaper, screenToPaperFromRect, uid, zoomPercent } from '../utils/drawing'
+import { createPaperCache, distance, midpoint, minPointSpacing, redrawPaper, screenToPaperFromRect, uid, zoomPercent } from '../utils/drawing'
 
 export function useWhiteboard(
   writingReady: boolean,
@@ -318,9 +318,24 @@ export function useWhiteboard(
   const eraseAt = useCallback((point: { x: number; y: number }) => {
     const before = strokesRef.current.length
     const radius = Math.max(18, size * 2.5)
-    strokesRef.current = strokesRef.current.filter((stroke) =>
-      !stroke.points.some((p) => Math.hypot(p.x - point.x, p.y - point.y) <= radius)
-    )
+    strokesRef.current = strokesRef.current.filter((stroke) => {
+      const points = stroke.points
+      for (let i = 0; i < points.length; i += 1) {
+        const current = points[i]
+        if (Math.hypot(current.x - point.x, current.y - point.y) <= radius) return false
+        if (i === 0) continue
+        const prev = points[i - 1]
+        const dx = current.x - prev.x
+        const dy = current.y - prev.y
+        const lengthSq = dx * dx + dy * dy
+        if (lengthSq === 0) continue
+        const t = Math.max(0, Math.min(1, ((point.x - prev.x) * dx + (point.y - prev.y) * dy) / lengthSq))
+        const nearestX = prev.x + dx * t
+        const nearestY = prev.y + dy * t
+        if (Math.hypot(point.x - nearestX, point.y - nearestY) <= radius) return false
+      }
+      return true
+    })
     if (strokesRef.current.length !== before) bumpRevision()
   }, [bumpRevision, size])
 
@@ -451,22 +466,28 @@ export function useWhiteboard(
       return
     }
 
+    if (tool === 'eraser') {
+      const nativeEvents = event.nativeEvent?.getCoalescedEvents?.() ?? [event.nativeEvent ?? event]
+      for (const native of nativeEvents) {
+        eraseAt(toPaper(canvas, native.clientX, native.clientY))
+      }
+      return
+    }
+
     const id = activeStrokeId.current
     if (!id) return
     const last = strokesRef.current.at(-1)
     if (!last || last.id !== id) return
 
     const nativeEvents = event.nativeEvent?.getCoalescedEvents?.() ?? [event.nativeEvent ?? event]
+    const spacing = minPointSpacing(viewportRef.current.scale)
     for (const native of nativeEvents) {
       const point = toPaper(canvas, native.clientX, native.clientY)
       point.pressure = native.pressure && native.pressure > 0 ? native.pressure : 0.55
-      if (tool === 'eraser') {
-        eraseAt(point)
-      } else {
-        last.points.push(point)
-      }
+      const prev = last.points.at(-1)
+      if (!prev || distance(prev, point) >= spacing) last.points.push(point)
     }
-    if (tool !== 'eraser') bumpRevision()
+    bumpRevision()
   }, [armSelectIdle, bumpRevision, eraseAt, eventPointer, setViewport, toPaper, tool, writingReady])
 
   const finishPointer = useCallback((event: PointerEvent<HTMLCanvasElement>, cancelled: boolean) => {
