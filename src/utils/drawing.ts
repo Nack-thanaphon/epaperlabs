@@ -14,9 +14,9 @@ export function zoomPercent(scale: number) {
   return Math.round(scale * 100)
 }
 
-/** Keep more detail when zoomed in; still cull hand tremor. */
+/** Keep ~0.5 CSS-pixel spacing so zoomed strokes stay connected. */
 export function minPointSpacing(scale: number) {
-  return Math.max(0.2, 0.65 / Math.max(0.3, scale))
+  return Math.max(0.2, 0.5 / Math.max(0.3, scale))
 }
 
 export function getSvgPathFromStroke(points: number[][]) {
@@ -63,11 +63,11 @@ export function midpoint(a: { x: number; y: number }, b: { x: number; y: number 
 }
 
 export function freehandOptions(scale = 1, live = false) {
-  const zoomBoost = Math.min(0.25, Math.max(0, (scale - 1) * 0.12))
+  const zoomBoost = Math.min(0.2, Math.max(0, (scale - 1) * 0.08))
   return {
     thinning: live ? 0.35 : 0.45,
-    smoothing: Math.min(0.85, (live ? 0.72 : 0.65) + zoomBoost),
-    streamline: Math.min(0.85, (live ? 0.72 : 0.62) + zoomBoost),
+    smoothing: Math.min(0.8, (live ? 0.65 : 0.6) + zoomBoost),
+    streamline: Math.min(0.8, (live ? 0.65 : 0.58) + zoomBoost),
     simulatePressure: true,
     last: !live,
     start: { taper: 0, cap: true },
@@ -75,24 +75,29 @@ export function freehandOptions(scale = 1, live = false) {
   }
 }
 
-/** Trace a quadratic mid-point path onto a canvas context. */
+/** Polyline through every sample — never skips gaps like midpoint curves can. */
+export function tracePolylineStroke(
+  ctx: CanvasRenderingContext2D | Pick<CanvasRenderingContext2D, 'moveTo' | 'lineTo' | 'beginPath'>,
+  points: Point[],
+) {
+  if (points.length === 0) return false
+  ctx.beginPath()
+  ctx.moveTo(points[0].x, points[0].y)
+  for (let i = 1; i < points.length; i += 1) {
+    ctx.lineTo(points[i].x, points[i].y)
+  }
+  return true
+}
+
+/** Midpoint quadratic for exports / soft committed ink. */
 export function traceQuadraticStroke(
   ctx: CanvasRenderingContext2D | Pick<CanvasRenderingContext2D, 'moveTo' | 'lineTo' | 'quadraticCurveTo' | 'beginPath'>,
   points: Point[],
 ) {
   if (points.length === 0) return false
+  if (points.length < 3) return tracePolylineStroke(ctx, points)
   ctx.beginPath()
-  if (points.length === 1) {
-    const p = points[0]
-    ctx.moveTo(p.x, p.y)
-    ctx.lineTo(p.x, p.y)
-    return true
-  }
   ctx.moveTo(points[0].x, points[0].y)
-  if (points.length === 2) {
-    ctx.lineTo(points[1].x, points[1].y)
-    return true
-  }
   for (let i = 1; i < points.length - 1; i += 1) {
     const current = points[i]
     const next = points[i + 1]
@@ -103,38 +108,29 @@ export function traceQuadraticStroke(
   return true
 }
 
-function drawCurvedStroke(ctx: CanvasRenderingContext2D, stroke: Stroke) {
+function drawInkStroke(ctx: CanvasRenderingContext2D, stroke: Stroke) {
   ctx.strokeStyle = stroke.color
   ctx.fillStyle = stroke.color
   ctx.lineCap = 'round'
   ctx.lineJoin = 'round'
-  ctx.lineWidth = stroke.size
+  ctx.miterLimit = 2
+  ctx.lineWidth = Math.max(stroke.size, 1)
   if (stroke.points.length === 1) {
     const p = stroke.points[0]
     ctx.beginPath()
-    ctx.arc(p.x, p.y, stroke.size / 2, 0, Math.PI * 2)
+    ctx.arc(p.x, p.y, Math.max(stroke.size, 1) / 2, 0, Math.PI * 2)
     ctx.fill()
     return
   }
-  if (!traceQuadraticStroke(ctx, stroke.points)) return
+  if (!tracePolylineStroke(ctx, stroke.points)) return
   ctx.stroke()
 }
 
-export function drawStrokePath(
-  ctx: CanvasRenderingContext2D,
-  stroke: Stroke,
-  options?: { scale?: number; live?: boolean },
-) {
-  if (stroke.points.length === 0) return
-  const scale = options?.scale ?? 1
-  const live = options?.live === true
-
-  // Live ink uses curves so the tip stays smooth while perfect-freehand catches up.
-  if (live || stroke.points.length < 3) {
-    drawCurvedStroke(ctx, stroke)
+function drawFreehandStroke(ctx: CanvasRenderingContext2D, stroke: Stroke, scale: number) {
+  if (stroke.points.length < 3) {
+    drawInkStroke(ctx, stroke)
     return
   }
-
   const opts = freehandOptions(scale, false)
   const outline = getStroke(
     stroke.points.map((p) => [p.x, p.y, p.pressure]),
@@ -149,23 +145,76 @@ export function drawStrokePath(
       end: opts.end,
     }
   )
-
   const path = getSvgPathFromStroke(outline)
   if (!path) {
-    drawCurvedStroke(ctx, stroke)
+    drawInkStroke(ctx, stroke)
     return
   }
   ctx.fillStyle = stroke.color
   ctx.fill(new Path2D(path))
 }
 
+export function drawStrokePath(
+  ctx: CanvasRenderingContext2D,
+  stroke: Stroke,
+  options?: { scale?: number; freehand?: boolean },
+) {
+  if (stroke.points.length === 0) return
+  if (options?.freehand) {
+    drawFreehandStroke(ctx, stroke, options.scale ?? 1)
+    return
+  }
+  drawInkStroke(ctx, stroke)
+}
+
+interface CachedStrokePath {
+  points: number
+  color: string
+  size: number
+  path: Path2D
+}
+
 export interface PaperCache {
-  layer: HTMLCanvasElement | null
-  key: string
+  paths: Map<string, CachedStrokePath>
 }
 
 export function createPaperCache(): PaperCache {
-  return { layer: null, key: '' }
+  return { paths: new Map() }
+}
+
+function buildPolylinePath(points: Point[]): Path2D {
+  const path = new Path2D()
+  path.moveTo(points[0].x, points[0].y)
+  for (let i = 1; i < points.length; i += 1) {
+    path.lineTo(points[i].x, points[i].y)
+  }
+  return path
+}
+
+function syncStrokePaths(cache: PaperCache, strokes: Stroke[]) {
+  const seen = new Set<string>()
+  for (const stroke of strokes) {
+    seen.add(stroke.id)
+    const existing = cache.paths.get(stroke.id)
+    if (
+      existing
+      && existing.points === stroke.points.length
+      && existing.color === stroke.color
+      && existing.size === stroke.size
+    ) {
+      continue
+    }
+    if (stroke.points.length === 0) continue
+    cache.paths.set(stroke.id, {
+      points: stroke.points.length,
+      color: stroke.color,
+      size: stroke.size,
+      path: buildPolylinePath(stroke.points),
+    })
+  }
+  for (const id of cache.paths.keys()) {
+    if (!seen.has(id)) cache.paths.delete(id)
+  }
 }
 
 function drawPaperGrid(ctx: CanvasRenderingContext2D) {
@@ -196,23 +245,18 @@ function applyPaperTransform(ctx: CanvasRenderingContext2D, dpr: number, viewpor
   )
 }
 
-function committedKey(width: number, height: number, viewport: Viewport, strokes: Stroke[]) {
-  return `${width}x${height}:${viewport.scale}:${viewport.x}:${viewport.y}:${strokes.length}:${strokes[0]?.id ?? ''}:${strokes.at(-1)?.id ?? ''}`
-}
-
-function paintStrokes(
-  ctx: CanvasRenderingContext2D,
-  dpr: number,
-  viewport: Viewport,
-  width: number,
-  height: number,
-  strokes: Stroke[],
-) {
-  ctx.setTransform(1, 0, 0, 1, 0, 0)
-  ctx.fillStyle = '#ffffff'
-  ctx.fillRect(0, 0, width, height)
-  applyPaperTransform(ctx, dpr, viewport)
-  for (const stroke of strokes) drawStrokePath(ctx, stroke, { scale: viewport.scale })
+function paintCachedStroke(ctx: CanvasRenderingContext2D, cached: CachedStrokePath) {
+  ctx.strokeStyle = cached.color
+  ctx.fillStyle = cached.color
+  ctx.lineCap = 'round'
+  ctx.lineJoin = 'round'
+  ctx.lineWidth = Math.max(cached.size, 1)
+  if (cached.points === 1) {
+    // Path is a degenerate move; draw a dot from cache metadata is awkward — caller uses drawInkStroke for live.
+    ctx.stroke(cached.path)
+    return
+  }
+  ctx.stroke(cached.path)
 }
 
 export function redrawPaper(
@@ -222,12 +266,13 @@ export function redrawPaper(
   lassoPath: Point[] = [],
   cache?: PaperCache,
   liveStrokeId: string | null = null,
+  screenRect?: DOMRectReadOnly | null,
 ) {
   const ctx = canvas.getContext('2d', { alpha: false })
   if (!ctx) return
 
-  const rect = canvas.getBoundingClientRect()
-  const dpr = window.devicePixelRatio || 1
+  const rect = screenRect ?? canvas.getBoundingClientRect()
+  const dpr = Math.min(window.devicePixelRatio || 1, 2)
   const width = Math.max(1, Math.floor(rect.width * dpr))
   const height = Math.max(1, Math.floor(rect.height * dpr))
   if (canvas.width !== width || canvas.height !== height) {
@@ -238,46 +283,40 @@ export function redrawPaper(
   const live = liveStrokeId && strokes.at(-1)?.id === liveStrokeId ? strokes.at(-1) : null
   const committed = live ? strokes.slice(0, -1) : strokes
 
-  if (cache) {
-    const key = committedKey(width, height, viewport, committed)
-    if (!cache.layer) cache.layer = document.createElement('canvas')
-    if (cache.layer.width !== width || cache.layer.height !== height) {
-      cache.layer.width = width
-      cache.layer.height = height
-      cache.key = ''
+  ctx.setTransform(1, 0, 0, 1, 0, 0)
+  ctx.fillStyle = '#ffffff'
+  ctx.fillRect(0, 0, width, height)
+  applyPaperTransform(ctx, dpr, viewport)
+
+  if (cache && typeof Path2D !== 'undefined') {
+    syncStrokePaths(cache, committed)
+    for (const stroke of committed) {
+      const cached = cache.paths.get(stroke.id)
+      if (!cached) {
+        drawInkStroke(ctx, stroke)
+        continue
+      }
+      if (stroke.points.length === 1) {
+        drawInkStroke(ctx, stroke)
+        continue
+      }
+      paintCachedStroke(ctx, cached)
     }
-    if (cache.key !== key) {
-      cache.key = key
-      const layerCtx = cache.layer.getContext('2d', { alpha: false })
-      if (layerCtx) paintStrokes(layerCtx, dpr, viewport, width, height, committed)
-    }
-    ctx.setTransform(1, 0, 0, 1, 0, 0)
-    ctx.drawImage(cache.layer, 0, 0)
-    applyPaperTransform(ctx, dpr, viewport)
-    if (live) drawStrokePath(ctx, live, { scale: viewport.scale, live: true })
   } else {
-    paintStrokes(ctx, dpr, viewport, width, height, strokes)
+    for (const stroke of committed) drawInkStroke(ctx, stroke)
   }
+  if (live) drawInkStroke(ctx, live)
 
   if (lassoPath.length >= 2) {
     ctx.save()
     ctx.strokeStyle = '#2563eb'
-    ctx.lineWidth = 3
-    ctx.setLineDash([14, 10])
+    ctx.lineWidth = 3 / Math.max(0.3, viewport.scale)
+    ctx.setLineDash([14 / viewport.scale, 10 / viewport.scale])
     ctx.lineJoin = 'round'
     ctx.lineCap = 'round'
-    ctx.beginPath()
-    ctx.moveTo(lassoPath[0].x, lassoPath[0].y)
-    if (lassoPath.length === 2) {
-      ctx.lineTo(lassoPath[1].x, lassoPath[1].y)
-    } else {
-      for (let i = 1; i < lassoPath.length - 1; i += 1) {
-        const current = lassoPath[i]
-        const next = lassoPath[i + 1]
-        ctx.quadraticCurveTo(current.x, current.y, (current.x + next.x) / 2, (current.y + next.y) / 2)
-      }
-      const last = lassoPath[lassoPath.length - 1]
-      ctx.lineTo(last.x, last.y)
+    if (!tracePolylineStroke(ctx, lassoPath)) {
+      ctx.restore()
+      return
     }
     ctx.closePath()
     ctx.stroke()
@@ -335,7 +374,7 @@ export async function exportPaperBlob(strokes: Stroke[]) {
   ctx.strokeStyle = '#e5e7eb'
   ctx.lineWidth = 2
   ctx.strokeRect(0, 0, PAPER_WIDTH, PAPER_HEIGHT)
-  for (const stroke of strokes) drawStrokePath(ctx, stroke, { scale: frame.scale })
+  for (const stroke of strokes) drawStrokePath(ctx, stroke, { scale: frame.scale, freehand: true })
   return new Promise<Blob>((resolve, reject) => {
     exportCanvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error('PNG export failed')), 'image/png')
   })

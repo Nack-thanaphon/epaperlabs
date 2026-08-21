@@ -71,6 +71,7 @@ export function useWhiteboard(
       lassoPathRef.current,
       paperCacheRef.current,
       activeStrokeId.current,
+      canvasRectRef.current,
     )
     onCanvasReadyRef.current?.()
   }, [])
@@ -467,10 +468,7 @@ export function useWhiteboard(
     }
 
     if (tool === 'eraser') {
-      const nativeEvents = event.nativeEvent?.getCoalescedEvents?.() ?? [event.nativeEvent ?? event]
-      for (const native of nativeEvents) {
-        eraseAt(toPaper(canvas, native.clientX, native.clientY))
-      }
+      eraseAt(toPaper(canvas, event.clientX, event.clientY))
       return
     }
 

@@ -91,7 +91,7 @@ export async function exportLassoBlob(strokes: Stroke[], polygon: Point[]): Prom
   ctx.clip()
   ctx.fillStyle = '#ffffff'
   ctx.fillRect(bounds.x, bounds.y, bounds.width, bounds.height)
-  for (const stroke of strokes) drawStrokePath(ctx, stroke)
+  for (const stroke of strokes) drawStrokePath(ctx, stroke, { freehand: true })
 
   return encodeCopyBlob(canvas)
 }
